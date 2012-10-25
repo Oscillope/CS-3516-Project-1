@@ -8,7 +8,7 @@
 #define DEFAULT_PORT "2012"
 int main(int argc, char** argv){
     char *port; //Range from 0-65535 so five digits is always sufficient
-    port = DEFUALT_PORT;
+    port = DEFAULT_PORT;
     struct addrinfo knowninfo;
     struct addrinfo *servinfo;  // will point to the results
 
