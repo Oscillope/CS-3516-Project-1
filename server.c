@@ -10,7 +10,11 @@
 #define DEFAULT_RATE_TIME   60
 #define DEFAULT_TIMEOUT     80
 #define DEFAULT_BACKLOG     20
-
+#define MAX_FILE_SIZE       4194304 //4MB
+#define SUCCESS             0
+#define FAILURE             1
+#define TIMEOUT             2
+#define RATE_LIMIT_EXCEEDED 3
 int main(int argc, char** argv){
     char *port; //Range from 0-65535 so five digits is always sufficient
     int ratenum, ratetime, timeout, backlog;
@@ -48,9 +52,23 @@ int main(int argc, char** argv){
     //TODO pop up a thread to handle the connection
     addrsize=sizeof(newaddr);
     acceptedfd = accept(socketfd, (struct sockaddr *)&newaddr, &addrsize);
-    int *msg;
-    int rcvstatus = recv(acceptedfd, (void *)msg, sizeof(int), 0);
-    close(acceptedfd);
+    int imgsize;
+    int rcvstatus = recv(acceptedfd, (void *)&imgsize, sizeof(int), 0);
     printf("Received %d from client!\n",*msg);
+    char *imgbuf;
+    if(imgsize<MAX_FILE_SIZE){
+        imgbuf = (char*)malloc(imgsize);
+        rcvstatus = recv(acceptedfd, (void *)imgbuf, imgsize, 0);
+        if(rcvstatus){
+            sendInt(acceptedfd, FAILURE);
+            //TODO exit the thread
+        }
+        //TODO process the image (if failed then send failure)
+        
+    }
+    close(acceptedfd);
     freeaddrinfo(serverinfo); // free up memory occupied by linked list
+}
+int sendInt(int sockfd, int toSend){
+    return send(sockfd, &toSend, sizeof(toSend), 0);
 }
