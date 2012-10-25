@@ -56,16 +56,17 @@ int main(int argc, char** argv){
     int rcvstatus = recv(acceptedfd, (void *)&imgsize, sizeof(int), 0);
     printf("Received %d from client!\n",*msg);
     char *imgbuf;
-    if(imgsize<MAX_FILE_SIZE){
-        imgbuf = (char*)malloc(imgsize);
-        rcvstatus = recv(acceptedfd, (void *)imgbuf, imgsize, 0);
-        if(rcvstatus){
-            sendInt(acceptedfd, FAILURE);
-            //TODO exit the thread
-        }
-        //TODO process the image (if failed then send failure)
-        
+    if(imgsize>=MAX_FILE_SIZE){
+        imgsize=MAX_FILE_SIZE;
     }
+    imgbuf = (char*)malloc(imgsize);
+    rcvstatus = recv(acceptedfd, (void *)imgbuf, imgsize, 0);
+    if(rcvstatus){
+        sendInt(acceptedfd, FAILURE);
+        //exit the thread
+        return 1;
+    }
+    //TODO process the image (if failed then send failure)
     close(acceptedfd);
     freeaddrinfo(serverinfo); // free up memory occupied by linked list
 }
