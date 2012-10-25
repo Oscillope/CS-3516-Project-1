@@ -5,6 +5,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <stdlib.h>
 #define DEFAULT_PORT        "2012"
 #define DEFAULT_RATE_NUM    3
 #define DEFAULT_RATE_TIME   60
@@ -55,7 +56,7 @@ int main(int argc, char** argv){
     acceptedfd = accept(socketfd, (struct sockaddr *)&newaddr, &addrsize);
     int imgsize;
     int rcvstatus = recv(acceptedfd, (void *)&imgsize, sizeof(int), 0);
-    printf("Received %d from client!\n",*msg);
+    printf("Client is sending a file of size %d bytes\n",imgsize);
     char *imgbuf, *url;
     if(imgsize>=MAX_FILE_SIZE){
         imgsize=MAX_FILE_SIZE;
