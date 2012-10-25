@@ -47,6 +47,7 @@ int main(int argc, char** argv){
         fprintf(stderr, "ERROR: listen() returned with an error\n");
         return 1;
     }
+    freeaddrinfo(serverinfo); // free up memory occupied by linked list
     //TODO determine if we actually want to accept the connection
     //accept incoming connection
     //TODO pop up a thread to handle the connection
@@ -55,7 +56,7 @@ int main(int argc, char** argv){
     int imgsize;
     int rcvstatus = recv(acceptedfd, (void *)&imgsize, sizeof(int), 0);
     printf("Received %d from client!\n",*msg);
-    char *imgbuf;
+    char *imgbuf, *url;
     if(imgsize>=MAX_FILE_SIZE){
         imgsize=MAX_FILE_SIZE;
     }
@@ -63,13 +64,19 @@ int main(int argc, char** argv){
     rcvstatus = recv(acceptedfd, (void *)imgbuf, imgsize, 0);
     if(rcvstatus){
         sendInt(acceptedfd, FAILURE);
+        close(acceptedfd);
         //exit the thread
         return 1;
     }
-    //TODO process the image (if failed then send failure)
+    //TODO process the image (if failed then send failure) and assign url to its variable
+    sendInt(acceptedfd, SUCCESS);
+    sendString(acceptedfd, url);
     close(acceptedfd);
-    freeaddrinfo(serverinfo); // free up memory occupied by linked list
 }
 int sendInt(int sockfd, int toSend){
     return send(sockfd, &toSend, sizeof(toSend), 0);
+}
+int sendString(int sockfd, char *toSend){
+    int length = strlen(toSend);
+    return send(sockfd, toSend, length, 0);
 }
