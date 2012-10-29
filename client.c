@@ -9,7 +9,7 @@
 #define SERVER_ADDRESS "localhost"
 
 int main(int argc, char** argv){
-    char *port; //Range from 0-65535 so five digits is always sufficient
+    char *port, *server; //Range from 0-65535 so five digits is always sufficient
     port = DEFAULT_PORT;
     server = SERVER_ADDRESS;
     struct addrinfo knowninfo;
@@ -21,10 +21,10 @@ int main(int argc, char** argv){
     knowninfo.ai_flags = AI_PASSIVE;		// Use the host's IP
     // Use localhost for now. TODO: change this to accept an argument
     if(getaddrinfo(server, port, &knowninfo, &clientinfo) != 0) {
-		fprintf(sterr, "FATAL: getaddrinfo() returned an error\n");
+		fprintf(stderr, "FATAL: getaddrinfo() returned an error\n");
 		return 1;
 	}
-	socketfd = socket(clientinfo->ai_family, clientinfo->ai_socktype, clientinfo->ai_protocol);
+	int socketfd = socket(clientinfo->ai_family, clientinfo->ai_socktype, clientinfo->ai_protocol);
     if(bind(socketfd, clientinfo->ai_addr, clientinfo->ai_addrlen) != 0){
         fprintf(stderr, "FATAL: bind() returned an error\n");
         return 1;
