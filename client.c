@@ -19,7 +19,7 @@ int main(int argc, char** argv){
     knowninfo.ai_family = AF_UNSPEC;
     knowninfo.ai_socktype = SOCK_STREAM;
     knowninfo.ai_flags = AI_PASSIVE;		// Use the host's IP
-    knowninfo.ai_addr = server;		// Use localhost for now. TODO: change this to accept an argument
+    // Use localhost for now. TODO: change this to accept an argument
     if(getaddrinfo(server, port, &knowninfo, &clientinfo) != 0) {
 		fprintf(sterr, "FATAL: getaddrinfo() returned an error\n");
 		return 1;
