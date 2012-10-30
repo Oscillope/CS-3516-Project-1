@@ -9,13 +9,14 @@
 #define SERVER_ADDRESS "localhost"
 
 int main(int argc, char** argv){
-    char *port, *server; //Range from 0-65535 so five digits is always sufficient
+    char *port, *server, *message; //Range from 0-65535 so five digits is always sufficient
     port = DEFAULT_PORT;
     server = SERVER_ADDRESS;
-    int yes=1;
+    message = "Hi Lou!";
     struct addrinfo knowninfo;
     struct addrinfo *clientinfo;  // will point to the results
     int socketfd;
+
 
     memset(&knowninfo, 0, sizeof knowninfo); // make sure the struct is empty
     knowninfo.ai_family = AF_UNSPEC;
@@ -36,6 +37,12 @@ int main(int argc, char** argv){
         fprintf(stderr, "FATAL: connect() returned an error\n");
         return 1;
     }
-    else printf("SUCCESS! Connected.\n");
-    
+    else printf("SUCCESS! Connected. Uploading secret message.\n");
+    int msgsize = strlen(message);
+    send(socketfd, (void *)&msgsize, sizeof(int), 0);
+    int sent = send(socketfd, message, strlen(message), 0);
+    printf("Sent %d bytes.\n", sent);
+    int status;
+    int rcvd = recv(socketfd, (void *)&status, sizeof(int), 0);
+    printf("Success? %d\n", status);
 }

@@ -63,12 +63,14 @@ int main(int argc, char** argv){
     }
     imgbuf = (char*)malloc(imgsize);
     rcvstatus = recv(acceptedfd, (void *)imgbuf, imgsize, 0);
+    printf("%s\n", imgbuf);
     if(rcvstatus){
         sendInt(acceptedfd, FAILURE);
         close(acceptedfd);
         //exit the thread
         return 1;
     }
+    
     //TODO process the image (if failed then send failure) and assign url to its variable
     sendInt(acceptedfd, SUCCESS);
     sendString(acceptedfd, url);
