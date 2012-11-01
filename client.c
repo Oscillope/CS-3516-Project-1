@@ -7,9 +7,15 @@
 #include <netinet/in.h>
 #define DEFAULT_PORT "2012"
 #define SERVER_ADDRESS "localhost"
-
+#define MAX_SIZE 4096
 int main(int argc, char** argv){
-    char *port, *server, *message; //Range from 0-65535 so five digits is always sufficient
+    char *port, *server, *message, *imgpath; //Range from 0-65535 so five digits is always sufficient
+    char data[MAX_SIZE];
+    imgpath = "testfiles/wpi.png";
+    FILE *fp;
+    fp=fopen(imgpath, "rb");
+    size_t imgsize = fread(data, sizeof(char), MAX_SIZE, fp);
+    printf("Read an image of size %d into memory\n", imgsize);
     port = DEFAULT_PORT;
     server = SERVER_ADDRESS;
     message = "Hi Lou!";

@@ -63,7 +63,13 @@ int main(int argc, char** argv){
     }
     imgbuf = (char*)malloc(imgsize);
     rcvstatus = recv(acceptedfd, (void *)imgbuf, imgsize, 0);
+    
     printf("%s\n", imgbuf);
+    FILE *fp;
+    fp=fopen("tmp.png", "wb");
+    fwrite(imgbuf, sizeof(char), imgsize, fp);
+    printf("Read an image of size %d into memory\n", imgsize);
+    
     if(rcvstatus){
         sendInt(acceptedfd, FAILURE);
         close(acceptedfd);
