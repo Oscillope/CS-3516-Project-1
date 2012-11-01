@@ -8,6 +8,9 @@
 #define DEFAULT_PORT "2012"
 #define SERVER_ADDRESS "localhost"
 #define MAX_SIZE 4096
+int receiveBytes(int sockfd, size_t numbytes, void* saveptr);
+int sendBytes(int sockfd, size_t numbytes, void* sendptr);
+
 int main(int argc, char** argv){
     char *port, *server, *message, *imgpath; //Range from 0-65535 so five digits is always sufficient
     char data[MAX_SIZE];
@@ -54,4 +57,21 @@ int main(int argc, char** argv){
     int status;
     int rcvd = recv(socketfd, (void *)&status, sizeof(int), 0);
     printf("Success? %d\n", status);
+}
+int receiveBytes(int sockfd, size_t numbytes, void* saveptr){
+    size_t rcvdbytes = 0;
+    int status=0;
+    while((rcvdbytes<numbytes) && (status != -1)){
+        status = recv(sockfd, saveptr, numbytes, 0);
+        rcvdbytes += status;
+    }
+    return rcvdbytes==numbytes;
+}
+int sendBytes(int sockfd, size_t numbytes, void* sendptr){
+    size_t sentbytes=0;
+    int status=0;
+    while((sentbytes<numbytes) && (status!=-1)){
+        sentbytes += send(sockfd, sendptr, numbytes, 0);
+    }
+    return sentbytes==numbytes;
 }

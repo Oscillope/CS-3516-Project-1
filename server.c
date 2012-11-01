@@ -16,6 +16,12 @@
 #define FAILURE             1
 #define TIMEOUT             2
 #define RATE_LIMIT_EXCEEDED 3
+int receiveBytes(int sockfd, size_t numbytes, void* saveptr);
+int sendBytes(int sockfd, size_t numbytes, void* sendptr);
+int writetofile(char* buffer, size_t size);
+int sendInt(int sockfd, int toSend);
+int sendString(int sockfd, char *toSend);
+
 int main(int argc, char** argv){
     char *port; //Range from 0-65535 so five digits is always sufficient
     int ratenum, ratetime, timeout, backlog;
@@ -53,36 +59,67 @@ int main(int argc, char** argv){
     //accept incoming connection
     //TODO pop up a thread to handle the connection
     addrsize=sizeof(newaddr);
+    
+    //TODO implement multithreading to handle multiple clients
     acceptedfd = accept(socketfd, (struct sockaddr *)&newaddr, &addrsize);
+    handleclient(acceptedfd);
+    
+    close(socketfd);
+}
+int handleclient(int sockfd){
     int imgsize;
-    int rcvstatus = recv(acceptedfd, (void *)&imgsize, sizeof(int), 0);
+    //receive the size of the image
+    int rcvstatus = receiveBytes(sockfd,  sizeof(int), (void *)&imgsize);
     printf("Client is sending a file of size %d bytes\n",imgsize);
     char *imgbuf, *url;
     if(imgsize>=MAX_FILE_SIZE){
         imgsize=MAX_FILE_SIZE;
     }
     imgbuf = (char*)malloc(imgsize);
-    rcvstatus = recv(acceptedfd, (void *)imgbuf, imgsize, 0);
-    
-    //printf("%s\n", imgbuf);
-    FILE *fp;
-    fp=fopen("tmp.png", "wb");
-    fwrite(imgbuf, sizeof(char), imgsize, fp);
-    free(imgbuf); //don't need this in memory anymore because we saved it to a file
-    fclose(fp); //we're done writing to the file
-    printf("Read an image of size %d into memory\n", imgsize);
-    
-    if(rcvstatus){
-        sendInt(acceptedfd, FAILURE);
-        close(acceptedfd);
+    //recieve the image
+    rcvstatus = receiveBytes(sockfd, imgsize, (void *)imgbuf);
+    if(!rcvstatus){
+        sendInt(sockfd, FAILURE);
+        close(sockfd);
         //exit the thread
         return 1;
     }
     
+    //write to temporary file
+    writetofile(imgbuf, imgsize);
+    printf("Wrote an image of size %d to file\n", imgsize);
+    free(imgbuf); //don't need this in memory anymore because we saved it to a file
+    
     //TODO process the image (if failed then send failure) and assign url to its variable
-    sendInt(acceptedfd, SUCCESS);
-    sendString(acceptedfd, url);
-    close(acceptedfd);
+    
+    sendInt(sockfd, SUCCESS);
+    sendString(sockfd, url);
+    close(sockfd);
+    return 0;
+}
+int writetofile(char* buffer, size_t size){
+    //TODO make this thread safe (ie use multiple files)
+    FILE *fp;
+    fp=fopen("tmp.png", "wb");
+    fwrite(buffer, sizeof(char), size, fp);
+    fclose(fp); //we're done writing to the file
+}
+int receiveBytes(int sockfd, size_t numbytes, void* saveptr){
+    size_t rcvdbytes = 0;
+    int status=0;
+    while((rcvdbytes<numbytes) && (status != -1)){
+        status = recv(sockfd, saveptr, numbytes, 0);
+        rcvdbytes += status;
+    }
+    return rcvdbytes==numbytes;
+}
+int sendBytes(int sockfd, size_t numbytes, void* sendptr){
+    size_t sentbytes=0;
+    int status=0;
+    while((sentbytes<numbytes) && (status!=-1)){
+        sentbytes += send(sockfd, sendptr, numbytes, 0);
+    }
+    return sentbytes==numbytes;
 }
 int sendInt(int sockfd, int toSend){
     return send(sockfd, &toSend, sizeof(toSend), 0);
