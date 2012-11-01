@@ -98,6 +98,8 @@ int handleclient(int sockfd){
     //TODO process the image (if failed then send failure) and assign url to its variable
     char url[MAX_URL_LENGTH];
     processImage(url);
+    //don't need to waste disk space by keeping file
+    system("rm tmp.png");
     printf("Parsed URL: %s\n", url);
     sendInt(sockfd, SUCCESS);
     sendString(sockfd, url);

@@ -8,6 +8,7 @@
 #define DEFAULT_PORT "2012"
 #define SERVER_ADDRESS "localhost"
 #define MAX_SIZE 4096
+#define MAX_URL_LENGTH 2048
 #define TRUE 1
 #define FALSE 0
 int receiveBytes(int sockfd, size_t numbytes, void* saveptr);
@@ -76,8 +77,8 @@ int receiveString(int sockfd, char *saveptr){
     size_t rcvdbytes = 0;
     int bytesread=0;
     int ended = FALSE;
-    while((!ended) && (bytesread != -1)){
-        bytesread = recv(sockfd, (void*)saveptr, MAX_SIZE, 0);
+    while((!ended) && (bytesread != -1) && rcvdbytes<MAX_URL_LENGTH){
+        bytesread = recv(sockfd, (void*)saveptr, MAX_URL_LENGTH, 0);
         rcvdbytes += bytesread;
         printf("Got %d bytes from server (%d total)\n", bytesread, rcvdbytes);
         ended=(saveptr[rcvdbytes]=='\0');
