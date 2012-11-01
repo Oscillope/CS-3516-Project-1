@@ -8,8 +8,11 @@
 #define DEFAULT_PORT "2012"
 #define SERVER_ADDRESS "localhost"
 #define MAX_SIZE 4096
+#define TRUE 1
+#define FALSE 0
 int receiveBytes(int sockfd, size_t numbytes, void* saveptr);
 int sendBytes(int sockfd, size_t numbytes, void* sendptr);
+int receiveString(int sockfd, char *saveptr);
 
 int main(int argc, char** argv){
     char *port, *server, *message, *imgpath; //Range from 0-65535 so five digits is always sufficient
@@ -55,8 +58,10 @@ int main(int argc, char** argv){
     }
     printf("Sent %d bytes.\n", sentbytes);
     int status;
-    int rcvd = recv(socketfd, (void *)&status, sizeof(int), 0);
-    printf("Success? %d\n", status);
+    char url[MAX_SIZE];
+    int rcvd = receiveBytes(socketfd, sizeof(int), (void *)&status);
+    rcvd = receiveString(socketfd, url);
+    printf("Success? %d\nURL: %s\n", status, url);
 }
 int receiveBytes(int sockfd, size_t numbytes, void* saveptr){
     size_t rcvdbytes = 0;
@@ -66,6 +71,18 @@ int receiveBytes(int sockfd, size_t numbytes, void* saveptr){
         rcvdbytes += status;
     }
     return rcvdbytes==numbytes;
+}
+int receiveString(int sockfd, char *saveptr){
+    size_t rcvdbytes = 0;
+    int bytesread=0;
+    int ended = FALSE;
+    while((!ended) && (bytesread != -1)){
+        bytesread = recv(sockfd, (void*)saveptr, MAX_SIZE, 0);
+        rcvdbytes += bytesread;
+        printf("Got %d bytes from server (%d total)\n", bytesread, rcvdbytes);
+        ended=(saveptr[rcvdbytes]=='\0');
+    }
+    return rcvdbytes;
 }
 int sendBytes(int sockfd, size_t numbytes, void* sendptr){
     size_t sentbytes=0;

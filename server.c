@@ -16,11 +16,15 @@
 #define FAILURE             1
 #define TIMEOUT             2
 #define RATE_LIMIT_EXCEEDED 3
+#define MAX_URL_LENGTH 2048
 int receiveBytes(int sockfd, size_t numbytes, void* saveptr);
 int sendBytes(int sockfd, size_t numbytes, void* sendptr);
 int writetofile(char* buffer, size_t size);
 int sendInt(int sockfd, int toSend);
 int sendString(int sockfd, char *toSend);
+FILE *popen(const char *command, const char *type);
+int pclose(FILE *stream);
+int processImage(char *str);
 
 int main(int argc, char** argv){
     char *port; //Range from 0-65535 so five digits is always sufficient
@@ -65,13 +69,14 @@ int main(int argc, char** argv){
     handleclient(acceptedfd);
     
     close(socketfd);
+    return 0;
 }
 int handleclient(int sockfd){
     int imgsize;
     //receive the size of the image
     int rcvstatus = receiveBytes(sockfd,  sizeof(int), (void *)&imgsize);
     printf("Client is sending a file of size %d bytes\n",imgsize);
-    char *imgbuf, *url;
+    char *imgbuf;
     if(imgsize>=MAX_FILE_SIZE){
         imgsize=MAX_FILE_SIZE;
     }
@@ -91,7 +96,9 @@ int handleclient(int sockfd){
     free(imgbuf); //don't need this in memory anymore because we saved it to a file
     
     //TODO process the image (if failed then send failure) and assign url to its variable
-    
+    char url[MAX_URL_LENGTH];
+    processImage(url);
+    printf("Parsed URL: %s\n", url);
     sendInt(sockfd, SUCCESS);
     sendString(sockfd, url);
     close(sockfd);
@@ -127,4 +134,14 @@ int sendInt(int sockfd, int toSend){
 int sendString(int sockfd, char *toSend){
     int length = strlen(toSend);
     return send(sockfd, toSend, length, 0);
+}
+int processImage(char *str){
+    FILE *process = popen("java -cp javase.jar:core.jar com.google.zxing.client.j2se.CommandLineRunner tmp.png", "r");
+    int i;
+    printf("Started processing image\n");
+    for(i=0; i<5; i++){
+        fgets(str,MAX_URL_LENGTH,process);
+    }
+    int pclose(FILE *stream); 
+    return 0;
 }
