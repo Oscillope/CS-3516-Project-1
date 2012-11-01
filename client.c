@@ -15,10 +15,11 @@ int main(int argc, char** argv){
     FILE *fp;
     fp=fopen(imgpath, "rb");
     size_t imgsize = fread(data, sizeof(char), MAX_SIZE, fp);
+    fclose(fp); //done reading from file
     printf("Read an image of size %d into memory\n", imgsize);
     port = DEFAULT_PORT;
     server = SERVER_ADDRESS;
-    message = "Hi Lou!";
+    message = data;
     struct addrinfo knowninfo;
     struct addrinfo *clientinfo;  // will point to the results
     int socketfd;
@@ -44,10 +45,12 @@ int main(int argc, char** argv){
         return 1;
     }
     else printf("SUCCESS! Connected. Uploading secret message.\n");
-    int msgsize = strlen(message);
-    send(socketfd, (void *)&msgsize, sizeof(int), 0);
-    int sent = send(socketfd, message, strlen(message), 0);
-    printf("Sent %d bytes.\n", sent);
+    send(socketfd, (void *)&imgsize, sizeof(size_t), 0);
+    size_t sentbytes=0;
+    while(sentbytes<imgsize){
+        sentbytes += send(socketfd, message, imgsize, 0);
+    }
+    printf("Sent %d bytes.\n", sentbytes);
     int status;
     int rcvd = recv(socketfd, (void *)&status, sizeof(int), 0);
     printf("Success? %d\n", status);

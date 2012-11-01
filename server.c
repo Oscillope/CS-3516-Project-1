@@ -64,10 +64,12 @@ int main(int argc, char** argv){
     imgbuf = (char*)malloc(imgsize);
     rcvstatus = recv(acceptedfd, (void *)imgbuf, imgsize, 0);
     
-    printf("%s\n", imgbuf);
+    //printf("%s\n", imgbuf);
     FILE *fp;
     fp=fopen("tmp.png", "wb");
     fwrite(imgbuf, sizeof(char), imgsize, fp);
+    free(imgbuf); //don't need this in memory anymore because we saved it to a file
+    fclose(fp); //we're done writing to the file
     printf("Read an image of size %d into memory\n", imgsize);
     
     if(rcvstatus){
