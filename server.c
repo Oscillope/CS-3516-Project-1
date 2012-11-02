@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdlib.h>
+#include <pthread.h>
 #define DEFAULT_PORT        "2012"
 #define DEFAULT_RATE_NUM    3
 #define DEFAULT_RATE_TIME   60
@@ -22,6 +23,7 @@ int sendBytes(int sockfd, size_t numbytes, void* sendptr);
 int writetofile(char* buffer, size_t size);
 int sendInt(int sockfd, int toSend);
 int sendString(int sockfd, char *toSend);
+void *handleclient(void *socketfd);
 FILE *popen(const char *command, const char *type);
 int pclose(FILE *stream);
 int processImage(char *str);
@@ -29,6 +31,8 @@ int processImage(char *str);
 int main(int argc, char** argv){
     char *port; //Range from 0-65535 so five digits is always sufficient
     int ratenum, ratetime, timeout, backlog;
+    pthread_t threads[DEFAULT_RATE_NUM];
+    long threadid=0;
     //TODO handle arguments;
     //if not specified, set defaults
     port = DEFAULT_PORT;
@@ -36,9 +40,8 @@ int main(int argc, char** argv){
     ratetime = DEFAULT_RATE_TIME;
     timeout = DEFAULT_TIMEOUT;
     backlog = DEFAULT_BACKLOG;
-    int socketfd, acceptedfd;
-    struct sockaddr_storage newaddr;
-    socklen_t addrsize;
+    int socketfd;
+
     struct addrinfo knowninfo, *serverinfo;
     //We wouldn't want crazy stack garbage ruining our sockets
     memset(&knowninfo, 0, sizeof(knowninfo));
@@ -54,40 +57,53 @@ int main(int argc, char** argv){
         fprintf(stderr, "ERROR: bind() returned with an error\n");
         return 1;
     }
+    printf("Bound socket.\n");
     if(listen(socketfd, backlog)!=0){
         fprintf(stderr, "ERROR: listen() returned with an error\n");
         return 1;
     }
+
     freeaddrinfo(serverinfo); // free up memory occupied by linked list
     //TODO determine if we actually want to accept the connection
     //accept incoming connection
     //TODO pop up a thread to handle the connection
-    addrsize=sizeof(newaddr);
-    
+
+    printf("I'm listening...\n");
     //TODO implement multithreading to handle multiple clients
-    acceptedfd = accept(socketfd, (struct sockaddr *)&newaddr, &addrsize);
-    handleclient(acceptedfd);
+    struct sockaddr_storage newaddr;
+    socklen_t addrsize;
+    addrsize=sizeof(newaddr);
+	int acceptedfd;
+	acceptedfd = accept((int)socketfd, (struct sockaddr *)&newaddr, &addrsize);
+    printf("Accepted a socket.");
+    if(pthread_create(&threads[threadid], NULL, handleclient, (void *)acceptedfd)) {
+		printf("There was an error creating the thread");
+		exit(-1);
+	}
+	else printf("Created thread ID %ld.\n",(long)threadid);
     
     close(socketfd);
-    return 0;
+    pthread_exit(NULL);
 }
-int handleclient(int sockfd){
+void *handleclient(void *sockfd){
+	printf("Hello, I'm a thread!\n");
+	
     int imgsize;
     //receive the size of the image
-    int rcvstatus = receiveBytes(sockfd,  sizeof(int), (void *)&imgsize);
-    printf("Client is sending a file of size %d bytes\n",imgsize);
+    int rcvstatus = receiveBytes((int *)sockfd,  sizeof(int), (void *)&imgsize);
+    printf("Client is sending a file of size %d bytes.\n",imgsize);
     char *imgbuf;
     if(imgsize>=MAX_FILE_SIZE){
         imgsize=MAX_FILE_SIZE;
     }
     imgbuf = (char*)malloc(imgsize);
     //recieve the image
-    rcvstatus = receiveBytes(sockfd, imgsize, (void *)imgbuf);
+    rcvstatus = receiveBytes((int)sockfd, imgsize, (void *)imgbuf);
     if(!rcvstatus){
-        sendInt(sockfd, FAILURE);
-        close(sockfd);
+        sendInt((int)sockfd, FAILURE);
+        close((int)sockfd);
         //exit the thread
-        return 1;
+        pthread_exit(NULL);
     }
     
     //write to temporary file
@@ -99,12 +115,12 @@ int handleclient(int sockfd){
     char url[MAX_URL_LENGTH];
     processImage(url);
     //don't need to waste disk space by keeping file
-    system("rm tmp.png");
+    //system("rm tmp.png");
     printf("Parsed URL: %s\n", url);
-    sendInt(sockfd, SUCCESS);
-    sendString(sockfd, url);
-    close(sockfd);
-    return 0;
+    sendInt((int)sockfd, SUCCESS);
+    sendString((int)sockfd, url);
+    close((int)sockfd);
+    pthread_exit(NULL);
 }
 int writetofile(char* buffer, size_t size){
     //TODO make this thread safe (ie use multiple files)

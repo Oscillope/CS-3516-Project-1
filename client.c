@@ -18,7 +18,7 @@ int receiveString(int sockfd, char *saveptr);
 int main(int argc, char** argv){
     char *port, *server, *message, *imgpath; //Range from 0-65535 so five digits is always sufficient
     char data[MAX_SIZE];
-    imgpath = "testfiles/wpi.png";
+    imgpath = "test.png";
     FILE *fp;
     fp=fopen(imgpath, "rb");
     size_t imgsize = fread(data, sizeof(char), MAX_SIZE, fp);
@@ -41,7 +41,7 @@ int main(int argc, char** argv){
 		fprintf(stderr, "FATAL: getaddrinfo() returned an error\n");
 		return 1;
 	}
-    printf("%u",clientinfo->ai_addr);
+    printf("%u\n",clientinfo->ai_addr);
 	socketfd = socket(clientinfo->ai_family, clientinfo->ai_socktype, clientinfo->ai_protocol);
     /*if(bind(socketfd, clientinfo->ai_addr, clientinfo->ai_addrlen) != 0) {
         fprintf(stderr, "FATAL: bind() returned an error\n");
@@ -51,7 +51,7 @@ int main(int argc, char** argv){
         fprintf(stderr, "FATAL: connect() returned an error\n");
         return 1;
     }
-    else printf("SUCCESS! Connected. Uploading secret message.\n");
+    else printf("SUCCESS! Connected. Uploading file.\n");
     send(socketfd, (void *)&imgsize, sizeof(size_t), 0);
     size_t sentbytes=0;
     while(sentbytes<imgsize){
@@ -63,6 +63,7 @@ int main(int argc, char** argv){
     int rcvd = receiveBytes(socketfd, sizeof(int), (void *)&status);
     rcvd = receiveString(socketfd, url);
     printf("Success? %d\nURL: %s\n", status, url);
+    return 0;
 }
 int receiveBytes(int sockfd, size_t numbytes, void* saveptr){
     size_t rcvdbytes = 0;
