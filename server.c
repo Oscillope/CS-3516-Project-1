@@ -33,7 +33,7 @@ long threadid = 0;
 int main(int argc, char** argv){
     char *port; //Range from 0-65535 so five digits is always sufficient
     int ratenum, ratetime, timeout, backlog;
-    pthread_t threads[3];
+    pthread_t threads[10];
     //TODO handle arguments;
     //if not specified, set defaults
     port = DEFAULT_PORT;
@@ -118,7 +118,9 @@ void *handleclient(void *sockfd){
     char url[MAX_URL_LENGTH];
     processImage(url);
     //don't need to waste disk space by keeping file
-    //system("rm tmp.png");
+    char remove[MAX_URL_LENGTH];
+    sprintf(remove, "rm tmp-%u.png", pthread_self());
+    system(remove);
     printf("Parsed URL: %s\n", url);
     sendInt((int)sockfd, SUCCESS);
     sendString((int)sockfd, url);
@@ -129,7 +131,15 @@ void *handleclient(void *sockfd){
 int writetofile(char* buffer, size_t size){
     //TODO make this thread safe (ie use multiple files)
     FILE *fp;
-    fp=fopen("tmp.png", "wb");
+    char tmp[MAX_URL_LENGTH];
+    sprintf(tmp, "tmp-%u.png", pthread_self());
+    printf("The string is now %s\n",tmp);
+    //strcat(tmp, self);
+    //printf("The string is now %s\n",tmp);
+    //strcat(tmp, ".png");
+    //printf("The string is now %s\n",tmp);
+    char *name = tmp;
+    fp=fopen(name, "wb");
     fwrite(buffer, sizeof(char), size, fp);
     fclose(fp); //we're done writing to the file
     return 0;
@@ -159,7 +169,9 @@ int sendString(int sockfd, char *toSend){
     return send(sockfd, toSend, length, 0);
 }
 int processImage(char *str){
-    FILE *process = popen("java -cp javase.jar:core.jar com.google.zxing.client.j2se.CommandLineRunner tmp.png", "r");
+	char command[MAX_URL_LENGTH];
+	sprintf(command, "java -cp javase.jar:core.jar com.google.zxing.client.j2se.CommandLineRunner tmp-%u.png", pthread_self());
+    FILE *process = popen(command, "r");
     int i;
     printf("Started processing image\n");
     for(i=0; i<5; i++){
