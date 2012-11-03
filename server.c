@@ -16,7 +16,8 @@
 #define FAILURE             1
 #define TIMEOUT             2
 #define RATE_LIMIT_EXCEEDED 3
-#define MAX_URL_LENGTH 2048
+#define MAX_URL_LENGTH      2048
+
 int receiveBytes(int sockfd, size_t numbytes, void* saveptr);
 int sendBytes(int sockfd, size_t numbytes, void* sendptr);
 int writetofile(char* buffer, size_t size);
@@ -24,17 +25,22 @@ int sendInt(int sockfd, int toSend);
 int sendString(int sockfd, char *toSend);
 FILE *popen(const char *command, const char *type);
 int pclose(FILE *stream);
+int close(int fd);
 int processImage(char *str);
+uint32_t htonl(uint32_t hostlong);
+int handleclient(int sockfd);
 
 int main(int argc, char** argv){
     char *port; //Range from 0-65535 so five digits is always sufficient
-    int ratenum, ratetime, timeout, backlog;
+    //int ratenum, ratetime, timeout;//TODO use this
+    int backlog;
     //TODO handle arguments;
     //if not specified, set defaults
     port = DEFAULT_PORT;
-    ratenum = DEFAULT_RATE_NUM;
+    //TODO use these numbers
+    /*ratenum = DEFAULT_RATE_NUM;
     ratetime = DEFAULT_RATE_TIME;
-    timeout = DEFAULT_TIMEOUT;
+    timeout = DEFAULT_TIMEOUT;*/
     backlog = DEFAULT_BACKLOG;
     int socketfd, acceptedfd;
     struct sockaddr_storage newaddr;
@@ -61,13 +67,12 @@ int main(int argc, char** argv){
     freeaddrinfo(serverinfo); // free up memory occupied by linked list
     //TODO determine if we actually want to accept the connection
     //accept incoming connection
-    //TODO pop up a thread to handle the connection
-    addrsize=sizeof(newaddr);
-    
+    addrsize=sizeof(newaddr);   
     //TODO implement multithreading to handle multiple clients
     acceptedfd = accept(socketfd, (struct sockaddr *)&newaddr, &addrsize);
+    //TODO pop up a thread to handle the connection
     handleclient(acceptedfd);
-    
+    //close the welcome socket
     close(socketfd);
     return 0;
 }
@@ -99,6 +104,7 @@ int handleclient(int sockfd){
     char url[MAX_URL_LENGTH];
     processImage(url);
     //don't need to waste disk space by keeping file
+    //TODO (make sure this gets fixed when filename changes in writetofile)
     system("rm tmp.png");
     printf("Parsed URL: %s\n", url);
     sendInt(sockfd, SUCCESS);
@@ -107,11 +113,12 @@ int handleclient(int sockfd){
     return 0;
 }
 int writetofile(char* buffer, size_t size){
-    //TODO make this thread safe (ie use multiple files)
     FILE *fp;
+    //TODO make this thread safe (ie use multiple files)
     fp=fopen("tmp.png", "wb");
-    fwrite(buffer, sizeof(char), size, fp);
+    int written = fwrite(buffer, sizeof(char), size, fp);
     fclose(fp); //we're done writing to the file
+    return written!=size;
 }
 int receiveBytes(int sockfd, size_t numbytes, void* saveptr){
     size_t rcvdbytes = 0;
@@ -131,7 +138,8 @@ int sendBytes(int sockfd, size_t numbytes, void* sendptr){
     return sentbytes==numbytes;
 }
 int sendInt(int sockfd, int toSend){
-    return send(sockfd, &toSend, sizeof(toSend), 0);
+    int converted = htonl(toSend);
+    return send(sockfd, &converted, sizeof(int), 0);
 }
 int sendString(int sockfd, char *toSend){
     int length = strlen(toSend);
