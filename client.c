@@ -7,7 +7,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #define DEFAULT_PORT "2012"
-#define SERVER_ADDRESS "10.10.10.89"
+#define SERVER_ADDRESS "localhost"
 #define MAX_SIZE 4096
 #define MAX_URL_LENGTH 2048
 #define TRUE 1

@@ -31,7 +31,6 @@ int pclose(FILE *stream);
 int close(int fd);
 int processImage(char *str);
 uint32_t htonl(uint32_t hostlong);
-int handleclient(int sockfd);
 
 long threadid = 0;
 
