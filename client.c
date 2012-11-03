@@ -5,8 +5,9 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <unistd.h>
 #define DEFAULT_PORT "2012"
-#define SERVER_ADDRESS "localhost"
+#define SERVER_ADDRESS "10.10.10.89"
 #define MAX_SIZE 4096
 #define MAX_URL_LENGTH 2048
 #define TRUE 1
@@ -18,7 +19,8 @@ uint32_t ntohl(uint32_t netlong);
 int receiveInt(int sockfd);
 
 int main(int argc, char** argv){
-    char *port, *server, *message, *imgpath; //Range from 0-65535 so five digits is always sufficient
+    char *port, *message, *imgpath; //Range from 0-65535 so five digits is always sufficient
+    char *server;
     char data[MAX_SIZE];
     imgpath = "testfiles/example.png"; //TODO make this an argument
     FILE *fp;
@@ -43,7 +45,7 @@ int main(int argc, char** argv){
 		fprintf(stderr, "FATAL: getaddrinfo() returned an error\n");
 		return 1;
 	}
-    printf("%u",(unsigned int)clientinfo->ai_addr);
+    printf("%u\n",(unsigned int)clientinfo->ai_addr);
 	socketfd = socket(clientinfo->ai_family, clientinfo->ai_socktype, clientinfo->ai_protocol);
     /*if(bind(socketfd, clientinfo->ai_addr, clientinfo->ai_addrlen) != 0) {
         fprintf(stderr, "FATAL: bind() returned an error\n");
@@ -53,7 +55,7 @@ int main(int argc, char** argv){
         fprintf(stderr, "FATAL: connect() returned an error\n");
         return 1;
     }
-    else printf("SUCCESS! Connected. Uploading secret message.\n");
+    else printf("SUCCESS! Connected. Uploading file.\n");
     send(socketfd, (void *)&imgsize, sizeof(size_t), 0);
     size_t sentbytes=0;
     while(sentbytes<imgsize){
