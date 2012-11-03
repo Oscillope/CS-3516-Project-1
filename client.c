@@ -5,8 +5,9 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <unistd.h>
 #define DEFAULT_PORT "2012"
-#define SERVER_ADDRESS "localhost"
+#define SERVER_ADDRESS "10.10.10.89"
 #define MAX_SIZE 4096
 #define MAX_URL_LENGTH 2048
 #define TRUE 1
@@ -16,7 +17,8 @@ int sendBytes(int sockfd, size_t numbytes, void* sendptr);
 int receiveString(int sockfd, char *saveptr);
 
 int main(int argc, char** argv){
-    char *port, *server, *message, *imgpath; //Range from 0-65535 so five digits is always sufficient
+    char *port, *message, *imgpath; //Range from 0-65535 so five digits is always sufficient
+    char *server;
     char data[MAX_SIZE];
     imgpath = "test.png";
     FILE *fp;
@@ -41,7 +43,7 @@ int main(int argc, char** argv){
 		fprintf(stderr, "FATAL: getaddrinfo() returned an error\n");
 		return 1;
 	}
-    printf("%u\n",clientinfo->ai_addr);
+    printf("%u\n",(unsigned int)clientinfo->ai_addr);
 	socketfd = socket(clientinfo->ai_family, clientinfo->ai_socktype, clientinfo->ai_protocol);
     /*if(bind(socketfd, clientinfo->ai_addr, clientinfo->ai_addrlen) != 0) {
         fprintf(stderr, "FATAL: bind() returned an error\n");
@@ -60,8 +62,8 @@ int main(int argc, char** argv){
     printf("Sent %d bytes.\n", sentbytes);
     int status;
     char url[MAX_SIZE];
-    int rcvd = receiveBytes(socketfd, sizeof(int), (void *)&status);
-    rcvd = receiveString(socketfd, url);
+    receiveBytes(socketfd, sizeof(int), (void *)&status);
+    receiveString(socketfd, url);
     printf("Success? %d\nURL: %s\n", status, url);
     return 0;
 }

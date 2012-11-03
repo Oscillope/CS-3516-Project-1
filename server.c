@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdlib.h>
@@ -27,12 +28,12 @@ void *handleclient(void *socketfd);
 FILE *popen(const char *command, const char *type);
 int pclose(FILE *stream);
 int processImage(char *str);
+long threadid = 0;
 
 int main(int argc, char** argv){
     char *port; //Range from 0-65535 so five digits is always sufficient
     int ratenum, ratetime, timeout, backlog;
-    pthread_t threads[DEFAULT_RATE_NUM];
-    long threadid=0;
+    pthread_t threads[3];
     //TODO handle arguments;
     //if not specified, set defaults
     port = DEFAULT_PORT;
@@ -67,20 +68,21 @@ int main(int argc, char** argv){
     //TODO determine if we actually want to accept the connection
     //accept incoming connection
     //TODO pop up a thread to handle the connection
-
-    printf("I'm listening...\n");
-    //TODO implement multithreading to handle multiple clients
-    struct sockaddr_storage newaddr;
-    socklen_t addrsize;
-    addrsize=sizeof(newaddr);
-	int acceptedfd;
-	acceptedfd = accept((int)socketfd, (struct sockaddr *)&newaddr, &addrsize);
-    printf("Accepted a socket.");
-    if(pthread_create(&threads[threadid], NULL, handleclient, (void *)acceptedfd)) {
-		printf("There was an error creating the thread");
-		exit(-1);
+    while(1) {
+		printf("I'm listening...\n");
+		struct sockaddr_storage newaddr;
+		socklen_t addrsize;
+		addrsize=sizeof(newaddr);
+		int acceptedfd;
+		acceptedfd = accept((int)socketfd, (struct sockaddr *)&newaddr, &addrsize);
+		printf("Accepted a socket.");
+		if(pthread_create(&threads[threadid], NULL, handleclient, (void *)acceptedfd)) {
+			printf("There was an error creating the thread");
+			exit(-1);
+		}
+		else printf("Created thread ID %ld.\n",(long)threadid);
+		threadid++;
 	}
-	else printf("Created thread ID %ld.\n",(long)threadid);
     
     close(socketfd);
     pthread_exit(NULL);
@@ -90,7 +92,7 @@ void *handleclient(void *sockfd){
 	
     int imgsize;
     //receive the size of the image
-    int rcvstatus = receiveBytes((int *)sockfd,  sizeof(int), (void *)&imgsize);
+    int rcvstatus = receiveBytes((int)sockfd,  sizeof(int), (void *)&imgsize);
     printf("Client is sending a file of size %d bytes.\n",imgsize);
     char *imgbuf;
     if(imgsize>=MAX_FILE_SIZE){
@@ -103,6 +105,7 @@ void *handleclient(void *sockfd){
         sendInt((int)sockfd, FAILURE);
         close((int)sockfd);
         //exit the thread
+        threadid--;
         pthread_exit(NULL);
     }
     
@@ -120,6 +123,7 @@ void *handleclient(void *sockfd){
     sendInt((int)sockfd, SUCCESS);
     sendString((int)sockfd, url);
     close((int)sockfd);
+    threadid--;
     pthread_exit(NULL);
 }
 int writetofile(char* buffer, size_t size){
@@ -128,6 +132,7 @@ int writetofile(char* buffer, size_t size){
     fp=fopen("tmp.png", "wb");
     fwrite(buffer, sizeof(char), size, fp);
     fclose(fp); //we're done writing to the file
+    return 0;
 }
 int receiveBytes(int sockfd, size_t numbytes, void* saveptr){
     size_t rcvdbytes = 0;
