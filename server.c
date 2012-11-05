@@ -32,15 +32,48 @@ long threadid = 0;
 
 int main(int argc, char** argv){
     char *port; //Range from 0-65535 so five digits is always sufficient
-    int ratenum, ratetime, timeout, backlog;
+    int ratenum, ratetime, timeout, backlog, o;
     pthread_t threads[10];
-    //TODO handle arguments;
-    //if not specified, set defaults
     port = DEFAULT_PORT;
     ratenum = DEFAULT_RATE_NUM;
     ratetime = DEFAULT_RATE_TIME;
     timeout = DEFAULT_TIMEOUT;
     backlog = DEFAULT_BACKLOG;
+    while((o = getopt(argc, argv, "p:r:s:u:t:h")) != -1) {
+		switch(o) {
+			case 'p':
+				port = optarg;
+				break;
+			case 'r':
+				ratenum = optarg;
+				break;
+			case 's':
+				ratetime = optarg;
+				break;
+			case 'u':
+				backlog = optarg;
+				break;
+			case 't':
+				timeout = optarg;
+				break;
+			case 'h':
+				printf("Usage: server [-p PORT -r RATE_MSGS -s RATE_TIME -u MAX_USERS -t TIMEOUT -h]\n");
+				printf("Defaults: PORT = %s; RATE_MSGS = %d; RATE_TIME = %d; MAX_USERS = %d; TIMEOUT = %d\n", DEFAULT_PORT, DEFAULT_RATE_NUM, DEFAULT_RATE_TIME, DEFAULT_BACKLOG, DEFAULT_TIMEOUT);
+				exit(0);
+				break;
+			case '?':
+				if(optopt == 'p' || optopt == 'r' || optopt == 's' || optopt == 'u' || optopt == 't') {
+					fprintf(stderr, "Option -%c requires an argument.\n", optopt);
+					exit(0);
+				}
+				else {
+					fprintf(stderr, "Unknown option -%c.\n", optopt);
+					printf("Usage: server -p [PORT] -r [RATE] -s [RATE_TIME] -u [MAX_USERS] -t [TIMEOUT] -h\n");
+					exit(0);
+				}
+				break;
+		}
+	}
     int socketfd;
 
     struct addrinfo knowninfo, *serverinfo;
