@@ -169,7 +169,7 @@ int writetofile(char* buffer, size_t size){
     printf("The string is now %s\n",tmp);
     char *name = tmp;
     fp=fopen(name, "wb");
-    fwrite(buffer, sizeof(char), size, fp);
+    size_t written = fwrite(buffer, sizeof(char), size, fp);
     fclose(fp); //we're done writing to the file
     return written!=size;
 }

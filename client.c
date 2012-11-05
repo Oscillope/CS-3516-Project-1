@@ -36,7 +36,7 @@ int main(int argc, char** argv){
 				break;
 			case 'h':
 				printf("Usage: client [-p PORT -a SERVER_ADDRESS -h] IMAGE\n");
-				printf("Defaults: PORT = %d; SERVER_ADDRESS = %s\n", DEFAULT_PORT, SERVER_ADDRESS);
+				printf("Defaults: PORT = %s; SERVER_ADDRESS = %s\n", DEFAULT_PORT, SERVER_ADDRESS);
 			case '?':
 				if(optopt == 'p' || optopt == 'a')
 					fprintf(stderr, "Option -%c requires an argument.\n", optopt);
