@@ -33,16 +33,17 @@ int processImage(char *str);
 uint32_t htonl(uint32_t hostlong);
 
 long threadid = 0;
+int ratenum, ratetime, timeout;
 
 int main(int argc, char** argv){
     char *port; //Range from 0-65535 so five digits is always sufficient
-    int ratenum, ratetime, timeout, backlog, o;
+    int backlog, o;
     pthread_t threads[10];
     port = DEFAULT_PORT;
     //TODO use these numbers
-    /*ratenum = DEFAULT_RATE_NUM;
+    ratenum = DEFAULT_RATE_NUM;
     ratetime = DEFAULT_RATE_TIME;
-    timeout = DEFAULT_TIMEOUT;*/
+    timeout = DEFAULT_TIMEOUT;
     backlog = DEFAULT_BACKLOG;
     while((o = getopt(argc, argv, "p:r:s:u:t:h")) != -1) {
 		switch(o) {
