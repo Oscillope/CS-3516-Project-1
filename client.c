@@ -22,14 +22,42 @@ int main(int argc, char** argv){
     char *port, *message, *imgpath; //Range from 0-65535 so five digits is always sufficient
     char *server;
     char data[MAX_SIZE];
-    imgpath = "testfiles/example.png"; //TODO make this an argument
+    int o, i;
+    port = DEFAULT_PORT;
+    server = SERVER_ADDRESS;
+    imgpath = NULL;
+    while((o = getopt(argc, argv, "p:a:h")) != -1) {
+		switch(o) {
+			case 'p':
+				port = optarg;
+				break;
+			case 'a':
+				server = optarg;
+				break;
+			case 'h':
+				printf("Usage: client [-p PORT -a SERVER_ADDRESS -h] IMAGE\n");
+				printf("Defaults: PORT = %d; SERVER_ADDRESS = %s\n", DEFAULT_PORT, SERVER_ADDRESS);
+			case '?':
+				if(optopt == 'p' || optopt == 'a')
+					fprintf(stderr, "Option -%c requires an argument.\n", optopt);
+		}
+	}
+	for(i = optind; i < argc; i++) {
+		printf("Current optind %d\n", optind);
+		if(argv[i])
+			imgpath = argv[i];
+	}
+	if(!imgpath) {
+		printf("You must provide a filename.\n");
+		printf("Usage: client [-p PORT -a SERVER_ADDRESS -h] IMAGE\n");
+		exit(0);
+	}
+
     FILE *fp;
     fp=fopen(imgpath, "rb");
     size_t imgsize = fread(data, sizeof(char), MAX_SIZE, fp);
     fclose(fp); //done reading from file
     printf("Read an image of size %d into memory\n", imgsize);
-    port = DEFAULT_PORT;
-    server = SERVER_ADDRESS; // Use localhost for now. TODO: change this to accept an argument
     message = data;
     struct addrinfo knowninfo;
     struct addrinfo *clientinfo;  // will point to the results

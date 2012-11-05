@@ -36,17 +36,49 @@ long threadid = 0;
 
 int main(int argc, char** argv){
     char *port; //Range from 0-65535 so five digits is always sufficient
-    int ratenum, ratetime, timeout, backlog;
-    //TODO no constants in code!
-    pthread_t threads[3];
-    //TODO handle arguments;
-    //if not specified, set defaults
+    int ratenum, ratetime, timeout, backlog, o;
+    pthread_t threads[10];
     port = DEFAULT_PORT;
     //TODO use these numbers
     /*ratenum = DEFAULT_RATE_NUM;
     ratetime = DEFAULT_RATE_TIME;
     timeout = DEFAULT_TIMEOUT;*/
     backlog = DEFAULT_BACKLOG;
+    while((o = getopt(argc, argv, "p:r:s:u:t:h")) != -1) {
+		switch(o) {
+			case 'p':
+				port = optarg;
+				break;
+			case 'r':
+				ratenum = optarg;
+				break;
+			case 's':
+				ratetime = optarg;
+				break;
+			case 'u':
+				backlog = optarg;
+				break;
+			case 't':
+				timeout = optarg;
+				break;
+			case 'h':
+				printf("Usage: server [-p PORT -r RATE_MSGS -s RATE_TIME -u MAX_USERS -t TIMEOUT -h]\n");
+				printf("Defaults: PORT = %s; RATE_MSGS = %d; RATE_TIME = %d; MAX_USERS = %d; TIMEOUT = %d\n", DEFAULT_PORT, DEFAULT_RATE_NUM, DEFAULT_RATE_TIME, DEFAULT_BACKLOG, DEFAULT_TIMEOUT);
+				exit(0);
+				break;
+			case '?':
+				if(optopt == 'p' || optopt == 'r' || optopt == 's' || optopt == 'u' || optopt == 't') {
+					fprintf(stderr, "Option -%c requires an argument.\n", optopt);
+					exit(0);
+				}
+				else {
+					fprintf(stderr, "Unknown option -%c.\n", optopt);
+					printf("Usage: server -p [PORT] -r [RATE] -s [RATE_TIME] -u [MAX_USERS] -t [TIMEOUT] -h\n");
+					exit(0);
+				}
+				break;
+		}
+	}
     int socketfd;
 
     struct addrinfo knowninfo, *serverinfo;
@@ -71,9 +103,6 @@ int main(int argc, char** argv){
     }
 
     freeaddrinfo(serverinfo); // free up memory occupied by linked list
-    //TODO determine if we actually want to accept the connection
-    //accept incoming connection
-    //TODO pop up a thread to handle the connection
     while(1) {
 		printf("I'm listening...\n");
 		struct sockaddr_storage newaddr;
@@ -123,8 +152,9 @@ void *handleclient(void *sockfd){
     char url[MAX_URL_LENGTH];
     processImage(url);
     //don't need to waste disk space by keeping file
-    //TODO (make sure this gets fixed when filename changes in writetofile)
-    system("rm tmp.png");
+    char remove[MAX_URL_LENGTH];
+    sprintf(remove, "rm tmp-%u.png", pthread_self());
+    system(remove);
     printf("Parsed URL: %s\n", url);
     sendInt((int)sockfd, SUCCESS);
     sendString((int)sockfd, url);
@@ -134,9 +164,12 @@ void *handleclient(void *sockfd){
 }
 int writetofile(char* buffer, size_t size){
     FILE *fp;
-    //TODO make this thread safe (ie use multiple files)
-    fp=fopen("tmp.png", "wb");
-    int written = fwrite(buffer, sizeof(char), size, fp);
+    char tmp[MAX_URL_LENGTH];
+    sprintf(tmp, "tmp-%u.png", pthread_self());
+    printf("The string is now %s\n",tmp);
+    char *name = tmp;
+    fp=fopen(name, "wb");
+    fwrite(buffer, sizeof(char), size, fp);
     fclose(fp); //we're done writing to the file
     return written!=size;
 }
@@ -166,7 +199,9 @@ int sendString(int sockfd, char *toSend){
     return send(sockfd, toSend, length, 0);
 }
 int processImage(char *str){
-    FILE *process = popen("java -cp javase.jar:core.jar com.google.zxing.client.j2se.CommandLineRunner tmp.png", "r");
+	char command[MAX_URL_LENGTH];
+	sprintf(command, "java -cp javase.jar:core.jar com.google.zxing.client.j2se.CommandLineRunner tmp-%u.png", pthread_self());
+    FILE *process = popen(command, "r");
     int i;
     printf("Started processing image\n");
     for(i=0; i<5; i++){
