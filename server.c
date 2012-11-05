@@ -8,6 +8,8 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <pthread.h>
+#define TRUE                1
+#define FALSE               0
 #define DEFAULT_PORT        "2012"
 #define DEFAULT_RATE_NUM    3
 #define DEFAULT_RATE_TIME   60
@@ -31,6 +33,7 @@ int pclose(FILE *stream);
 int close(int fd);
 int processImage(char *str);
 uint32_t htonl(uint32_t hostlong);
+void exit(int status);
 
 long threadid = 0;
 int ratenum, ratetime, timeout;
@@ -124,43 +127,57 @@ int main(int argc, char** argv){
 }
 void *handleclient(void *sockfd){
 	printf("Hello, I'm a thread!\n");
-	
-    int imgsize;
-    //receive the size of the image
-    int rcvstatus = receiveBytes((int)sockfd,  sizeof(int), (void *)&imgsize);
-    printf("Client is sending a file of size %d bytes.\n",imgsize);
-    char *imgbuf;
-    if(imgsize>=MAX_FILE_SIZE){
-        imgsize=MAX_FILE_SIZE;
-    }
-    imgbuf = (char*)malloc(imgsize);
-    //recieve the image
-    rcvstatus = receiveBytes((int)sockfd, imgsize, (void *)imgbuf);
-    if(!rcvstatus){
-        sendInt((int)sockfd, FAILURE);
-        close((int)sockfd);
-        //exit the thread
-        threadid--;
-        pthread_exit(NULL);
-    }
+    int timedout = FALSE;
+    fd_set readfds;
+	FD_ZERO(&readfds);
+	FD_SET((int)sockfd, &readfds);
+	struct timeval timeoutval;
+	timeoutval.tv_sec = 2;
+	timeoutval.tv_usec = 0;
     
-    //write to temporary file
-    writetofile(imgbuf, imgsize);
-    printf("Wrote an image of size %d to file\n", imgsize);
-    free(imgbuf); //don't need this in memory anymore because we saved it to a file
-    
-    //TODO process the image (if failed then send failure) and assign url to its variable
-    char url[MAX_URL_LENGTH];
-    processImage(url);
-    //don't need to waste disk space by keeping file
-    char remove[MAX_URL_LENGTH];
-    sprintf(remove, "rm tmp-%u.png", pthread_self());
-    system(remove);
-    printf("Parsed URL: %s\n", url);
-    sendInt((int)sockfd, SUCCESS);
-    sendString((int)sockfd, url);
-    close((int)sockfd);
+    while(!timedout){
+        select((int)sockfd+1, &readfds, NULL, NULL, &timeoutval);
+        if(FD_ISSET((int)sockfd, &readfds)){
+	        int imgsize;
+            //receive the size of the image
+            int rcvstatus = receiveBytes((int)sockfd, sizeof(int), (void *)&imgsize);
+            if(!rcvstatus){
+                printf("Client closed connection\n");
+                timedout=TRUE;
+                break;
+            }
+            printf("Client is sending a file of size %d bytes.\n",imgsize);
+            char *imgbuf;
+            if(imgsize>=MAX_FILE_SIZE){
+                imgsize=MAX_FILE_SIZE;
+            }
+            imgbuf = (char*)malloc(imgsize);
+            //recieve the image
+            rcvstatus = receiveBytes((int)sockfd, imgsize, (void *)imgbuf);
+            
+            //write to temporary file
+            writetofile(imgbuf, imgsize);
+            printf("Wrote an image of size %d to file\n", imgsize);
+            free(imgbuf); //don't need this in memory anymore because we saved it to a file
+            
+            //TODO process the image (if failed then send failure) and assign url to its variable
+            char url[MAX_URL_LENGTH];
+            processImage(url);
+            //don't need to waste disk space by keeping file
+            char remove[MAX_URL_LENGTH];
+            sprintf(remove, "rm tmp-%u.png", (unsigned int)pthread_self());
+            system(remove);
+            printf("Parsed URL: %s\n", url);
+            sendInt((int)sockfd, SUCCESS);
+            sendString((int)sockfd, url);
+        } else {
+            printf("Connection timed out.\n");
+            timedout=TRUE;
+        }
+    }
+    printf("Closing connection to host.\n");
     threadid--;
+    close((int)sockfd); 
     pthread_exit(NULL);
 }
 int writetofile(char* buffer, size_t size){
@@ -175,13 +192,16 @@ int writetofile(char* buffer, size_t size){
     return written!=size;
 }
 int receiveBytes(int sockfd, size_t numbytes, void* saveptr){
-    size_t rcvdbytes = 0;
-    int status=0;
+    int status = recv(sockfd, saveptr, numbytes, 0);
+    if(!status){
+        return status;
+    }
+    size_t rcvdbytes = status;
     while((rcvdbytes<numbytes) && (status != -1)){
         status = recv(sockfd, saveptr, numbytes, 0);
         rcvdbytes += status;
     }
-    return rcvdbytes==numbytes;
+    return rcvdbytes;
 }
 int sendBytes(int sockfd, size_t numbytes, void* sendptr){
     size_t sentbytes=0;
@@ -190,6 +210,12 @@ int sendBytes(int sockfd, size_t numbytes, void* sendptr){
         sentbytes += send(sockfd, sendptr, numbytes, 0);
     }
     return sentbytes==numbytes;
+}
+int receiveInt(int sockfd){
+    int toReturn;
+    receiveBytes(sockfd, sizeof(int), &toReturn);
+    toReturn = ntohl(toReturn);
+    return toReturn;
 }
 int sendInt(int sockfd, int toSend){
     int converted = htonl(toSend);

@@ -98,6 +98,7 @@ int main(int argc, char** argv){
     status=receiveInt(socketfd);
     receiveString(socketfd, url);
     printf("Success? %d\nURL: %s\n", status, url);
+    sleep(10);
     return status;
 }
 int receiveInt(int sockfd){
