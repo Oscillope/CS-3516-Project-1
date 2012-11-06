@@ -14,7 +14,7 @@
 #define DEFAULT_RATE_NUM    3
 #define DEFAULT_RATE_TIME   60
 #define DEFAULT_TIMEOUT     80
-#define DEFAULT_MAX_USERS     20
+#define DEFAULT_MAX_USERS   3
 #define MAX_FILE_SIZE       4194304 //4MB
 #define SUCCESS             0
 #define FAILURE             1
@@ -37,11 +37,10 @@ void exit(int status);
 
 long threadid = 0;
 int ratenum, ratetime, timeout;
-
 int main(int argc, char** argv){
+    int socketfd;
     char *port; //Range from 0-65535 so five digits is always sufficient
     int maxusers, o;
-    pthread_t threads[10];
     port = DEFAULT_PORT;
     //TODO use these numbers
     ratenum = DEFAULT_RATE_NUM;
@@ -77,13 +76,13 @@ int main(int argc, char** argv){
 				}
 				else {
 					fprintf(stderr, "Unknown option -%c.\n", optopt);
-					printf("Usage: server -p [PORT] -r [RATE] -s [RATE_TIME] -u [MAX_USERS] -t [TIMEOUT] -h\n");
+					printf("Usage: server -p [PORT] -r [RATE] -s [RATE_TIME] -u [maxusers] -t [TIMEOUT] -h\n");
 					exit(0);
 				}
 				break;
 		}
 	}
-    int socketfd;
+	pthread_t threads[maxusers];
 
     struct addrinfo knowninfo, *serverinfo;
     //We wouldn't want crazy stack garbage ruining our sockets
@@ -113,14 +112,19 @@ int main(int argc, char** argv){
 		socklen_t addrsize;
 		addrsize=sizeof(newaddr);
 		int acceptedfd;
-		acceptedfd = accept((int)socketfd, (struct sockaddr *)&newaddr, &addrsize);
-		printf("Accepted a socket.");
-		if(pthread_create(&threads[threadid], NULL, handleclient, (void *)acceptedfd)) {
-			printf("There was an error creating the thread");
-			exit(-1);
+		if((threadid+1)>=maxusers){
+		    //Too many connected users
+		    pthread_yield();
+		}else{
+		    acceptedfd = accept((int)socketfd, (struct sockaddr *)&newaddr, &addrsize);
+		    printf("Accepted a socket.\n");
+		    if(pthread_create(&threads[threadid], NULL, handleclient, (void *)acceptedfd)) {
+			    printf("There was an error creating the thread");
+			    exit(-1);
+		    }
+		    else printf("Created thread ID %ld.\n",(long)threadid);
+		    threadid++;
 		}
-		else printf("Created thread ID %ld.\n",(long)threadid);
-		threadid++;
 	}
     close(socketfd);
     pthread_exit(NULL);
@@ -172,6 +176,8 @@ void *handleclient(void *sockfd){
             sendString((int)sockfd, url);
         } else {
             printf("Connection timed out.\n");
+            sendInt((int)sockfd, TIMEOUT);
+            sendString((int)sockfd, "Connection timed out");
             timedout=TRUE;
         }
     }
