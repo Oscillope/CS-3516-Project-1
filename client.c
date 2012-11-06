@@ -129,7 +129,7 @@ int receiveString(int sockfd, char *saveptr){
         rcvdbytes += bytesread;
         printf("Got %d bytes from server (%d total), string %s, char %c\n", bytesread, rcvdbytes, saveptr, saveptr[rcvdbytes]);
     }
-    //saveptr[rcvdbytes]='\0';
+    saveptr[rcvdbytes]='\0';
     return rcvdbytes;
 }
 int sendBytes(int sockfd, size_t numbytes, void* sendptr){
