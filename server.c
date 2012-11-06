@@ -149,14 +149,17 @@ void *handleclient(void *sockfd){
 	struct timeval timeoutval;
 	timeoutval.tv_sec = timeout;
 	timeoutval.tv_usec = 0;
-    
+    time_t lastconnection[ratenum];
+    memset(lastconnection, 0 , ratenum*sizeof(time_t));
     while(!timedout){
         //TODO enforce rate rules
+        //set timeout
         select((int)sockfd+1, &readfds, NULL, NULL, &timeoutval);
         if(FD_ISSET((int)sockfd, &readfds)){
 	        int imgsize;
             //receive the size of the image
             int rcvstatus = receiveBytes((int)sockfd, sizeof(int), (void *)&imgsize);
+            time_t currenttime = time(NULL);
             if(!rcvstatus){
                 printf("Client closed connection\n");
                 timedout=TRUE;
@@ -170,21 +173,37 @@ void *handleclient(void *sockfd){
             imgbuf = (char*)malloc(imgsize);
             //recieve the image
             rcvstatus = receiveBytes((int)sockfd, imgsize, (void *)imgbuf);
+            int i;
+            int isfull = TRUE;
+            for(i=0; i<ratenum; i++){
+                if(difftime(currenttime, lastconnection[i])>ratetime){
+                    lastconnection[i]=currenttime;
+                    printf("found a time: %f\n", difftime(currenttime, lastconnection[i]));
+                    isfull = FALSE;
+                    break;
+                }
+            }
+            if(isfull){
+                free(imgbuf);
+                writetolog("Rate limit exceeded\n");
+                sendInt((int)sockfd, RATE_LIMIT_EXCEEDED);
+                sendString((int)sockfd, "Rate limit exceeded");
+            } else {
+                //write to temporary file
+                writetofile(imgbuf, imgsize);
+                printf("Wrote an image of size %d to file\n", imgsize);
+                free(imgbuf); //don't need this in memory anymore because we saved it to a file
             
-            //write to temporary file
-            writetofile(imgbuf, imgsize);
-            printf("Wrote an image of size %d to file\n", imgsize);
-            free(imgbuf); //don't need this in memory anymore because we saved it to a file
-            
-            char url[MAX_URL_LENGTH];
-            processImage(url);
-            //don't need to waste disk space by keeping file
-            char remove[MAX_URL_LENGTH];
-            sprintf(remove, "rm tmp-%u.png", (unsigned int)pthread_self());
-            system(remove);
-            printf("Parsed URL: %s\n", url);
-            sendInt((int)sockfd, SUCCESS);
-            sendString((int)sockfd, url);
+                char url[MAX_URL_LENGTH];
+                processImage(url);
+                //don't need to waste disk space by keeping file
+                char remove[MAX_URL_LENGTH];
+                sprintf(remove, "rm tmp-%u.png", (unsigned int)pthread_self());
+                system(remove);
+                printf("Parsed URL: %s\n", url);
+                sendInt((int)sockfd, SUCCESS);
+                sendString((int)sockfd, url);
+            }
         } else {
             writetolog("Connection timed out.\n");
             sendInt((int)sockfd, TIMEOUT);
