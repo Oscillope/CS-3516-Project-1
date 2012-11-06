@@ -62,16 +62,16 @@ int main(int argc, char** argv){
 				checkPort(port);
 				break;
 			case 'r':
-				ratenum = (int)optarg;
+				ratenum = atoi(optarg);
 				break;
 			case 's':
-				ratetime = (int)optarg;
+				ratetime = atoi(optarg);
 				break;
 			case 'u':
-				maxusers = (int)optarg;
+				maxusers = atoi(optarg);
 				break;
 			case 't':
-				timeout = (int)optarg;
+				timeout = atoi(optarg);
 				break;
 			case 'h':
 				printf("Usage: server [-p PORT -r RATE_MSGS -s RATE_TIME -u MAX_USERS -t TIMEOUT -h]\n");

@@ -62,7 +62,7 @@ int main(int argc, char** argv){
     struct addrinfo knowninfo;
     struct addrinfo *clientinfo;  // will point to the results
     int socketfd;
-
+	
     memset(&knowninfo, 0, sizeof knowninfo); // make sure the struct is empty
     knowninfo.ai_family = AF_UNSPEC;
     knowninfo.ai_socktype = SOCK_STREAM;
