@@ -34,28 +34,31 @@ int main(int argc, char** argv){
 				break;
 			case 'h':
 				printf("Usage: client [-p PORT -a SERVER_ADDRESS -h] IMAGE\n");
-				printf("Defaults: PORT = %d; SERVER_ADDRESS = %s\n", DEFAULT_PORT, SERVER_ADDRESS);
+				printf("Defaults: PORT = %s; SERVER_ADDRESS = %s\n", DEFAULT_PORT, SERVER_ADDRESS);
+				exit(0);
 			case '?':
-				if(optopt == 'p' || optopt == 'a')
+				if(optopt == 'p' || optopt == 'a') {
 					fprintf(stderr, "Option -%c requires an argument.\n", optopt);
+					exit(1);
+				}
 		}
 	}
 	for(i = optind; i < argc; i++) {
-		printf("Current optind %d\n", optind);
+		//printf("Current optind %d\n", optind);
 		if(argv[i])
 			imgpath = argv[i];
 	}
 	if(!imgpath) {
 		printf("You must provide a filename.\n");
 		printf("Usage: client [-p PORT -a SERVER_ADDRESS -h] IMAGE\n");
-		exit(0);
+		exit(1);
 	}
 		
     FILE *fp;
     fp=fopen(imgpath, "rb");
     size_t imgsize = fread(data, sizeof(char), MAX_SIZE, fp);
     fclose(fp); //done reading from file
-    printf("Read an image of size %d into memory\n", imgsize);
+    //printf("Read an image of size %d into memory\n", imgsize);
     message = data;
     struct addrinfo knowninfo;
     struct addrinfo *clientinfo;  // will point to the results
@@ -71,17 +74,13 @@ int main(int argc, char** argv){
 		fprintf(stderr, "FATAL: getaddrinfo() returned an error\n");
 		return 1;
 	}
-    printf("%u\n",(unsigned int)clientinfo->ai_addr);
+    //printf("Socket: %u\n",(unsigned int)clientinfo->ai_addr);
 	socketfd = socket(clientinfo->ai_family, clientinfo->ai_socktype, clientinfo->ai_protocol);
-    /*if(bind(socketfd, clientinfo->ai_addr, clientinfo->ai_addrlen) != 0) {
-        fprintf(stderr, "FATAL: bind() returned an error\n");
-        return 1;
-    }*/
     if(connect(socketfd, clientinfo->ai_addr, clientinfo->ai_addrlen) != 0) {
         fprintf(stderr, "FATAL: connect() returned an error\n");
         return 1;
     }
-    else printf("SUCCESS! Connected. Uploading file.\n");
+    else printf("Connected. Uploading file.\n");
     send(socketfd, (void *)&imgsize, sizeof(size_t), 0);
     size_t sentbytes=0;
     while(sentbytes<imgsize){
@@ -92,7 +91,8 @@ int main(int argc, char** argv){
     char url[MAX_SIZE];
     receiveBytes(socketfd, sizeof(int), (void *)&status);
     receiveString(socketfd, url);
-    printf("Success? %d\nURL: %s\n", status, url);
+    if(status) printf("An error occurred while uploading the file.\n");
+    printf("URL: %s\n", url);
     return 0;
 }
 int receiveBytes(int sockfd, size_t numbytes, void* saveptr){

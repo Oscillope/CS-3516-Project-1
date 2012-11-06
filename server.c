@@ -64,12 +64,12 @@ int main(int argc, char** argv){
 			case '?':
 				if(optopt == 'p' || optopt == 'r' || optopt == 's' || optopt == 'u' || optopt == 't') {
 					fprintf(stderr, "Option -%c requires an argument.\n", optopt);
-					exit(0);
+					exit(1);
 				}
 				else {
 					fprintf(stderr, "Unknown option -%c.\n", optopt);
 					printf("Usage: server -p [PORT] -r [RATE] -s [RATE_TIME] -u [MAX_USERS] -t [TIMEOUT] -h\n");
-					exit(0);
+					exit(1);
 				}
 				break;
 		}
@@ -91,7 +91,7 @@ int main(int argc, char** argv){
         fprintf(stderr, "ERROR: bind() returned with an error\n");
         return 1;
     }
-    printf("Bound socket.\n");
+    //printf("Bound socket.\n");
     if(listen(socketfd, backlog)!=0){
         fprintf(stderr, "ERROR: listen() returned with an error\n");
         return 1;
@@ -102,13 +102,13 @@ int main(int argc, char** argv){
     //accept incoming connection
     //TODO pop up a thread to handle the connection
     while(1) {
-		printf("I'm listening...\n");
+		//printf("I'm listening...\n");
 		struct sockaddr_storage newaddr;
 		socklen_t addrsize;
 		addrsize=sizeof(newaddr);
 		int acceptedfd;
 		acceptedfd = accept((int)socketfd, (struct sockaddr *)&newaddr, &addrsize);
-		printf("Accepted a socket.");
+		//printf("Accepted a socket.");
 		if(pthread_create(&threads[threadid], NULL, handleclient, (void *)acceptedfd)) {
 			printf("There was an error creating the thread");
 			exit(-1);
@@ -121,8 +121,7 @@ int main(int argc, char** argv){
     pthread_exit(NULL);
 }
 void *handleclient(void *sockfd){
-	printf("Hello, I'm a thread!\n");
-	
+	//printf("Hello, I'm a thread!\n");
     int imgsize;
     //receive the size of the image
     int rcvstatus = receiveBytes((int)sockfd,  sizeof(int), (void *)&imgsize);
@@ -166,11 +165,7 @@ int writetofile(char* buffer, size_t size){
     FILE *fp;
     char tmp[MAX_URL_LENGTH];
     sprintf(tmp, "tmp-%u.png", pthread_self());
-    printf("The string is now %s\n",tmp);
-    //strcat(tmp, self);
-    //printf("The string is now %s\n",tmp);
-    //strcat(tmp, ".png");
-    //printf("The string is now %s\n",tmp);
+    printf("The filename is %s\n",tmp);
     char *name = tmp;
     fp=fopen(name, "wb");
     fwrite(buffer, sizeof(char), size, fp);
