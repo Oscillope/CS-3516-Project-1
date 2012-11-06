@@ -36,13 +36,17 @@ int processImage(char *str);
 int pthread_yield(void);
 uint32_t htonl(uint32_t hostlong);
 void exit(int status);
+void writetolog(char *message);
 
 long threadid = 0;
 int ratenum, ratetime, timeout;
+pthread_mutex_t logmutex;
+
 int main(int argc, char** argv){
     int socketfd;
     char *port; //Range from 0-65535 so five digits is always sufficient
     int maxusers, o;
+    pthread_mutex_init(&logmutex, NULL);
     port = DEFAULT_PORT;
     //TODO use these numbers
     ratenum = DEFAULT_RATE_NUM;
@@ -116,7 +120,7 @@ int main(int argc, char** argv){
 		acceptedfd = accept((int)socketfd, (struct sockaddr *)&newaddr, &addrsize);
 		if((threadid)>=maxusers){
 		    //Too many connected users
-		    printf("Too many users connected, refusing connection.\n");
+		    writetolog("Too many users connected, refusing connection.\n");
 		    sendInt(acceptedfd, USER_LIMIT);
 		    sendString(acceptedfd, "Too many users connected");
 		    close(acceptedfd);
@@ -133,6 +137,7 @@ int main(int argc, char** argv){
 		}
 	}
     close(socketfd);
+    pthread_mutex_destroy(&logmutex);
     pthread_exit(NULL);
 }
 void *handleclient(void *sockfd){
@@ -146,6 +151,7 @@ void *handleclient(void *sockfd){
 	timeoutval.tv_usec = 0;
     
     while(!timedout){
+        //TODO enforce rate rules
         select((int)sockfd+1, &readfds, NULL, NULL, &timeoutval);
         if(FD_ISSET((int)sockfd, &readfds)){
 	        int imgsize;
@@ -170,7 +176,6 @@ void *handleclient(void *sockfd){
             printf("Wrote an image of size %d to file\n", imgsize);
             free(imgbuf); //don't need this in memory anymore because we saved it to a file
             
-            //TODO process the image (if failed then send failure) and assign url to its variable
             char url[MAX_URL_LENGTH];
             processImage(url);
             //don't need to waste disk space by keeping file
@@ -181,7 +186,7 @@ void *handleclient(void *sockfd){
             sendInt((int)sockfd, SUCCESS);
             sendString((int)sockfd, url);
         } else {
-            printf("Connection timed out.\n");
+            writetolog("Connection timed out.\n");
             sendInt((int)sockfd, TIMEOUT);
             sendString((int)sockfd, "Connection timed out");
             timedout=TRUE;
@@ -250,3 +255,14 @@ int processImage(char *str){
     int pclose(FILE *stream); 
     return 0;
 }
+void writetolog(char *message){
+    //TODO add timestamp
+    pthread_mutex_lock(&logmutex);
+    FILE *fp;
+    int size = strlen(message);
+    fp=fopen("server.log", "ab");
+    fputs(message, fp);
+    fclose(fp);
+    pthread_mutex_unlock(&logmutex);
+}
+    
