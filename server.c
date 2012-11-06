@@ -14,7 +14,7 @@
 #define DEFAULT_RATE_NUM    3
 #define DEFAULT_RATE_TIME   60
 #define DEFAULT_TIMEOUT     80
-#define DEFAULT_BACKLOG     20
+#define DEFAULT_MAX_USERS     20
 #define MAX_FILE_SIZE       4194304 //4MB
 #define SUCCESS             0
 #define FAILURE             1
@@ -40,14 +40,14 @@ int ratenum, ratetime, timeout;
 
 int main(int argc, char** argv){
     char *port; //Range from 0-65535 so five digits is always sufficient
-    int backlog, o;
+    int maxusers, o;
     pthread_t threads[10];
     port = DEFAULT_PORT;
     //TODO use these numbers
     ratenum = DEFAULT_RATE_NUM;
     ratetime = DEFAULT_RATE_TIME;
     timeout = DEFAULT_TIMEOUT;
-    backlog = DEFAULT_BACKLOG;
+    maxusers = DEFAULT_MAX_USERS;
     while((o = getopt(argc, argv, "p:r:s:u:t:h")) != -1) {
 		switch(o) {
 			case 'p':
@@ -60,14 +60,14 @@ int main(int argc, char** argv){
 				ratetime = optarg;
 				break;
 			case 'u':
-				backlog = optarg;
+				maxusers = optarg;
 				break;
 			case 't':
 				timeout = optarg;
 				break;
 			case 'h':
 				printf("Usage: server [-p PORT -r RATE_MSGS -s RATE_TIME -u MAX_USERS -t TIMEOUT -h]\n");
-				printf("Defaults: PORT = %s; RATE_MSGS = %d; RATE_TIME = %d; MAX_USERS = %d; TIMEOUT = %d\n", DEFAULT_PORT, DEFAULT_RATE_NUM, DEFAULT_RATE_TIME, DEFAULT_BACKLOG, DEFAULT_TIMEOUT);
+				printf("Defaults: PORT = %s; RATE_MSGS = %d; RATE_TIME = %d; MAX_USERS = %d; TIMEOUT = %d\n", DEFAULT_PORT, DEFAULT_RATE_NUM, DEFAULT_RATE_TIME, DEFAULT_MAX_USERS, DEFAULT_TIMEOUT);
 				exit(0);
 				break;
 			case '?':
@@ -101,7 +101,7 @@ int main(int argc, char** argv){
         return 1;
     }
     printf("Bound socket.\n");
-    if(listen(socketfd, backlog)!=0){
+    if(listen(socketfd, maxusers)!=0){
         fprintf(stderr, "ERROR: listen() returned with an error\n");
         return 1;
     }
@@ -132,7 +132,7 @@ void *handleclient(void *sockfd){
 	FD_ZERO(&readfds);
 	FD_SET((int)sockfd, &readfds);
 	struct timeval timeoutval;
-	timeoutval.tv_sec = 2;
+	timeoutval.tv_sec = timeout;
 	timeoutval.tv_usec = 0;
     
     while(!timedout){
