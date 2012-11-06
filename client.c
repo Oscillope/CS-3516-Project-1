@@ -98,7 +98,6 @@ int main(int argc, char** argv){
     status=receiveInt(socketfd);
     receiveString(socketfd, url);
     printf("Success? %d\nURL: %s\n", status, url);
-    sleep(10);
     return status;
 }
 int receiveInt(int sockfd){
@@ -118,14 +117,14 @@ int receiveBytes(int sockfd, size_t numbytes, void* saveptr){
 }
 int receiveString(int sockfd, char *saveptr){
     size_t rcvdbytes = 0;
-    int bytesread=0;
-    int ended = FALSE;
-    while((!ended) && (bytesread != -1) && rcvdbytes<MAX_URL_LENGTH){
+    int bytesread = 0;
+    int size = receiveInt(sockfd);
+    while((bytesread != -1) && rcvdbytes<size){
         bytesread = recv(sockfd, (void*)saveptr, MAX_URL_LENGTH, 0);
         rcvdbytes += bytesread;
         printf("Got %d bytes from server (%d total)\n", bytesread, rcvdbytes);
-        ended=(saveptr[rcvdbytes]=='\0');
     }
+    //saveptr[rcvdbytes]='\0';
     return rcvdbytes;
 }
 int sendBytes(int sockfd, size_t numbytes, void* sendptr){
