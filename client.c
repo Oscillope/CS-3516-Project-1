@@ -63,7 +63,6 @@ int main(int argc, char** argv){
     struct addrinfo *clientinfo;  // will point to the results
     int socketfd;
 
-
     memset(&knowninfo, 0, sizeof knowninfo); // make sure the struct is empty
     knowninfo.ai_family = AF_UNSPEC;
     knowninfo.ai_socktype = SOCK_STREAM;
@@ -73,12 +72,7 @@ int main(int argc, char** argv){
 		fprintf(stderr, "FATAL: getaddrinfo() returned an error\n");
 		return 1;
 	}
-    //printf("%u\n",(unsigned int)clientinfo->ai_addr);
 	socketfd = socket(clientinfo->ai_family, clientinfo->ai_socktype, clientinfo->ai_protocol);
-    /*if(bind(socketfd, clientinfo->ai_addr, clientinfo->ai_addrlen) != 0) {
-        fprintf(stderr, "FATAL: bind() returned an error\n");
-        return 1;
-    }*/
     if(connect(socketfd, clientinfo->ai_addr, clientinfo->ai_addrlen) != 0) {
         fprintf(stderr, "FATAL: connect() returned an error\n");
         return 1;
@@ -102,7 +96,6 @@ int main(int argc, char** argv){
 	    printf("Sent %d bytes.\n", sentbytes);
 	    #endif
 	    char url[MAX_SIZE];
-	    //int rcvd = receiveBytes(socketfd, sizeof(int), (void *)&status);
 	    status=receiveInt(socketfd);
 	    receiveString(socketfd, url);
 	    switch(status) {
