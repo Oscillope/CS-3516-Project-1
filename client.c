@@ -17,6 +17,7 @@ int sendBytes(int sockfd, size_t numbytes, void* sendptr);
 int receiveString(int sockfd, char *saveptr);
 uint32_t ntohl(uint32_t netlong);
 int receiveInt(int sockfd);
+void exit(int status);
 
 int main(int argc, char** argv){
     char *port, *message; //Range from 0-65535 so five digits is always sufficient
@@ -47,7 +48,6 @@ int main(int argc, char** argv){
 	char *imgpath[(argc-optind)];
 	memset(imgpath, 0, sizeof(imgpath));
 	for(i = optind; i < argc; i++) {
-		printf("Current optind %d\n", optind);
 		if(argv[i])
 			imgpath[i-optind] = argv[i];
 	}
@@ -56,9 +56,6 @@ int main(int argc, char** argv){
 		printf("Usage: client [-p PORT -a SERVER_ADDRESS -h] IMAGE\n");
 		exit(0);
 	}
-	printf("Current argc: %d\n", argc);
-
-    
     struct addrinfo knowninfo;
     struct addrinfo *clientinfo;  // will point to the results
     int socketfd;
@@ -68,7 +65,7 @@ int main(int argc, char** argv){
     knowninfo.ai_family = AF_UNSPEC;
     knowninfo.ai_socktype = SOCK_STREAM;
     knowninfo.ai_flags = AI_PASSIVE;		// Use the host's IP
-    knowninfo.ai_addr = server;		
+    knowninfo.ai_addr = (struct sockaddr *)server;		
     if(getaddrinfo(server, port, &knowninfo, &clientinfo) != 0) {
 		fprintf(stderr, "FATAL: getaddrinfo() returned an error\n");
 		return 1;
@@ -127,7 +124,7 @@ int receiveString(int sockfd, char *saveptr){
     while((bytesread != -1) && rcvdbytes<size){
         bytesread = recv(sockfd, (void*)saveptr, MAX_URL_LENGTH, 0);
         rcvdbytes += bytesread;
-        printf("Got %d bytes from server (%d total), string %s, char %c\n", bytesread, rcvdbytes, saveptr, saveptr[rcvdbytes]);
+        printf("Got %d bytes from server (%d total).\n", bytesread, rcvdbytes);
     }
     saveptr[rcvdbytes]='\0';
     return rcvdbytes;

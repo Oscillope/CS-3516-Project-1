@@ -33,6 +33,7 @@ FILE *popen(const char *command, const char *type);
 int pclose(FILE *stream);
 int close(int fd);
 int processImage(char *str);
+int pthread_yield(void);
 uint32_t htonl(uint32_t hostlong);
 void exit(int status);
 
@@ -54,16 +55,16 @@ int main(int argc, char** argv){
 				port = optarg;
 				break;
 			case 'r':
-				ratenum = optarg;
+				ratenum = (int)optarg;
 				break;
 			case 's':
-				ratetime = optarg;
+				ratetime = (int)optarg;
 				break;
 			case 'u':
-				maxusers = optarg;
+				maxusers = (int)optarg;
 				break;
 			case 't':
-				timeout = optarg;
+				timeout = (int)optarg;
 				break;
 			case 'h':
 				printf("Usage: server [-p PORT -r RATE_MSGS -s RATE_TIME -u MAX_USERS -t TIMEOUT -h]\n");
@@ -194,7 +195,7 @@ void *handleclient(void *sockfd){
 int writetofile(char* buffer, size_t size){
     FILE *fp;
     char tmp[MAX_URL_LENGTH];
-    sprintf(tmp, "tmp-%u.png", pthread_self());
+    sprintf(tmp, "tmp-%u.png", (unsigned int)pthread_self());
     printf("The string is now %s\n",tmp);
     char *name = tmp;
     fp=fopen(name, "wb");
@@ -239,7 +240,7 @@ int sendString(int sockfd, char *toSend){
 }
 int processImage(char *str){
 	char command[MAX_URL_LENGTH];
-	sprintf(command, "java -cp javase.jar:core.jar com.google.zxing.client.j2se.CommandLineRunner tmp-%u.png", pthread_self());
+	sprintf(command, "java -cp javase.jar:core.jar com.google.zxing.client.j2se.CommandLineRunner tmp-%u.png", (unsigned int)pthread_self());
     FILE *process = popen(command, "r");
     int i;
     printf("Started processing image\n");
