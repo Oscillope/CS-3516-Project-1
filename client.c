@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <stdlib.h>
 #define DEFAULT_PORT "2012"
 #define SERVER_ADDRESS "localhost"
 #define MAX_SIZE 4096
@@ -18,6 +19,7 @@ int receiveString(int sockfd, char *saveptr);
 uint32_t ntohl(uint32_t netlong);
 int receiveInt(int sockfd);
 void exit(int status);
+void checkPort(char *port);
 
 int main(int argc, char** argv){
     char *port, *message; //Range from 0-65535 so five digits is always sufficient
@@ -31,6 +33,7 @@ int main(int argc, char** argv){
 		switch(o) {
 			case 'p':
 				port = optarg;
+				checkPort(port);
 				break;
 			case 'a':
 				server = optarg;
@@ -136,4 +139,12 @@ int sendBytes(int sockfd, size_t numbytes, void* sendptr){
         sentbytes += send(sockfd, sendptr, numbytes, 0);
     }
     return sentbytes==numbytes;
+}
+void checkPort(char *port) {
+	int portInt = atoi(port);
+	if((portInt < 2000) || (portInt > 3000)) {
+		fprintf(stderr, "Port %d is out of range. Please choose a port between 2000 and 3000.\n", portInt);
+		exit(1);
+	}
+	return;
 }

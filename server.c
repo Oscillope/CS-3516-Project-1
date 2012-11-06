@@ -36,6 +36,7 @@ int processImage(char *str);
 int pthread_yield(void);
 uint32_t htonl(uint32_t hostlong);
 void exit(int status);
+void checkPort(char *port);
 
 long threadid = 0;
 int ratenum, ratetime, timeout;
@@ -53,6 +54,7 @@ int main(int argc, char** argv){
 		switch(o) {
 			case 'p':
 				port = optarg;
+				checkPort(port);
 				break;
 			case 'r':
 				ratenum = (int)optarg;
@@ -249,4 +251,12 @@ int processImage(char *str){
     }
     int pclose(FILE *stream); 
     return 0;
+}
+void checkPort(char *port) {
+	int portInt = atoi(port);
+	if((portInt < 2000) || (portInt > 3000)) {
+		fprintf(stderr, "Port %d is out of range. Please choose a port between 2000 and 3000.\n", portInt);
+		exit(1);
+	}
+	return;
 }
