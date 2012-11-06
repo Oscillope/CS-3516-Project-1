@@ -25,14 +25,14 @@
 
 int receiveBytes(int sockfd, size_t numbytes, void* saveptr);
 int sendBytes(int sockfd, size_t numbytes, void* sendptr);
-int writetofile(char* buffer, size_t size);
+int writetofile(char* buffer, size_t size, int counter);
 int sendInt(int sockfd, int toSend);
 int sendString(int sockfd, char *toSend);
 void *handleclient(void *socketfd);
 FILE *popen(const char *command, const char *type);
 int pclose(FILE *stream);
 int close(int fd);
-int processImage(char *str);
+int processImage(char *str, int counter);
 int pthread_yield(void);
 uint32_t htonl(uint32_t hostlong);
 void exit(int status);
@@ -151,7 +151,7 @@ void *handleclient(void *sockfd){
 	struct timeval timeoutval;
 	timeoutval.tv_sec = timeout;
 	timeoutval.tv_usec = 0;
-    
+    int imagenum = 0;
     while(!timedout){
         select((int)sockfd+1, &readfds, NULL, NULL, &timeoutval);
         if(FD_ISSET((int)sockfd, &readfds)){
@@ -173,9 +173,10 @@ void *handleclient(void *sockfd){
             imgbuf = (char*)malloc(imgsize);
             //recieve the image
             rcvstatus = receiveBytes((int)sockfd, imgsize, (void *)imgbuf);
-            
+            printf("Recieve status: %d", rcvstatus);
+            imagenum++;
             //write to temporary file
-            writetofile(imgbuf, imgsize);
+            writetofile(imgbuf, imgsize, imagenum);
             #ifdef DEBUG
             printf("Wrote an image of size %d to file\n", imgsize);
             #endif
@@ -183,10 +184,10 @@ void *handleclient(void *sockfd){
             
             //TODO process the image (if failed then send failure) and assign url to its variable
             char url[MAX_URL_LENGTH];
-            processImage(url);
+            processImage(url, imagenum);
             //don't need to waste disk space by keeping file
             char remove[MAX_URL_LENGTH];
-            sprintf(remove, "rm tmp-%u.png", (unsigned int)pthread_self());
+            sprintf(remove, "rm tmp-%u-%d.png", (unsigned int)pthread_self(), imagenum);
             system(remove);
             printf("Parsed URL: %s\n", url);
             sendInt((int)sockfd, SUCCESS);
@@ -205,10 +206,10 @@ void *handleclient(void *sockfd){
     close((int)sockfd); 
     pthread_exit(NULL);
 }
-int writetofile(char* buffer, size_t size){
+int writetofile(char* buffer, size_t size, int counter){
     FILE *fp;
     char tmp[MAX_URL_LENGTH];
-    sprintf(tmp, "tmp-%u.png", (unsigned int)pthread_self());
+    sprintf(tmp, "tmp-%u-%d.png", (unsigned int)pthread_self(), counter);
     #ifdef DEBUG
     printf("The string is now %s\n",tmp);
     #endif
@@ -253,9 +254,9 @@ int sendString(int sockfd, char *toSend){
     sendInt(sockfd, length);
     return send(sockfd, toSend, length, 0);
 }
-int processImage(char *str){
+int processImage(char *str, int counter){
 	char command[MAX_URL_LENGTH];
-	sprintf(command, "java -cp javase.jar:core.jar com.google.zxing.client.j2se.CommandLineRunner tmp-%u.png", (unsigned int)pthread_self());
+	sprintf(command, "java -cp javase.jar:core.jar com.google.zxing.client.j2se.CommandLineRunner tmp-%u-%d.png", (unsigned int)pthread_self(), counter);
     FILE *process = popen(command, "r");
     int i;
     #ifdef DEBUG
