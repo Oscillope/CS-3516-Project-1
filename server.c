@@ -37,13 +37,17 @@ int pthread_yield(void);
 uint32_t htonl(uint32_t hostlong);
 void exit(int status);
 void checkPort(char *port);
+void writetolog(char *message);
 
-long threadid = 0;
+long numclients = 0;
 int ratenum, ratetime, timeout;
+pthread_mutex_t logmutex;
+
 int main(int argc, char** argv){
     int socketfd;
     char *port; //Range from 0-65535 so five digits is always sufficient
     int maxusers, o;
+    pthread_mutex_init(&logmutex, NULL);
     port = DEFAULT_PORT;
     //TODO use these numbers
     ratenum = DEFAULT_RATE_NUM;
@@ -118,9 +122,9 @@ int main(int argc, char** argv){
 		addrsize=sizeof(newaddr);
 		int acceptedfd;
 		acceptedfd = accept((int)socketfd, (struct sockaddr *)&newaddr, &addrsize);
-		if((threadid)>=maxusers){
+		if((numclients)>=maxusers){
 		    //Too many connected users
-		    printf("Too many users connected, refusing connection.\n");
+		    writetolog("Too many users connected, refusing connection.\n");
 		    sendInt(acceptedfd, USER_LIMIT);
 		    sendString(acceptedfd, "Too many users connected");
 		    close(acceptedfd);
@@ -129,15 +133,16 @@ int main(int argc, char** argv){
 		    #ifdef DEBUG
 		    printf("Accepted a socket.\n");
 		    #endif
-		    if(pthread_create(&threads[threadid], NULL, handleclient, (void *)acceptedfd)) {
+		    if(pthread_create(&threads[numclients], NULL, handleclient, (void *)acceptedfd)) {
 			    printf("There was an error creating the thread");
 			    exit(-1);
 		    }
-		    else printf("Created thread ID %ld.\n",(long)threadid);
-		    threadid++;
+		    else printf("Created thread ID %ld.\n",(long)numclients);
+		    numclients++;
 		}
 	}
     close(socketfd);
+    pthread_mutex_destroy(&logmutex);
     pthread_exit(NULL);
 }
 void *handleclient(void *sockfd){
@@ -152,12 +157,17 @@ void *handleclient(void *sockfd){
 	timeoutval.tv_sec = timeout;
 	timeoutval.tv_usec = 0;
     int imagenum = 0;
+    time_t lastconnection[ratenum];
+    memset(lastconnection, 0 , ratenum*sizeof(time_t));
     while(!timedout){
+        //TODO enforce rate rules
+        //set timeout
         select((int)sockfd+1, &readfds, NULL, NULL, &timeoutval);
         if(FD_ISSET((int)sockfd, &readfds)){
 	        int imgsize;
             //receive the size of the image
             int rcvstatus = receiveBytes((int)sockfd, sizeof(int), (void *)&imgsize);
+            time_t currenttime = time(NULL);
             if(!rcvstatus){
                 printf("Client closed connection\n");
                 timedout=TRUE;
@@ -173,27 +183,42 @@ void *handleclient(void *sockfd){
             imgbuf = (char*)malloc(imgsize);
             //recieve the image
             rcvstatus = receiveBytes((int)sockfd, imgsize, (void *)imgbuf);
-            printf("Recieve status: %d", rcvstatus);
+            printf("Recieve status: %d\n", rcvstatus);
             imagenum++;
-            //write to temporary file
-            writetofile(imgbuf, imgsize, imagenum);
-            #ifdef DEBUG
-            printf("Wrote an image of size %d to file\n", imgsize);
-            #endif
-            free(imgbuf); //don't need this in memory anymore because we saved it to a file
+            int i;
+            int isfull = TRUE;
+            for(i=0; i<ratenum; i++){
+                if(difftime(currenttime, lastconnection[i])>ratetime){
+                    lastconnection[i]=currenttime;
+                    printf("found a time: %f\n", difftime(currenttime, lastconnection[i]));
+                    isfull = FALSE;
+                    break;
+                }
+            }
+            if(isfull){
+                free(imgbuf);
+                writetolog("Rate limit exceeded\n");
+                sendInt((int)sockfd, RATE_LIMIT_EXCEEDED);
+                sendString((int)sockfd, "Rate limit exceeded");
+            } else {
+                //write to temporary file
+                writetofile(imgbuf, imgsize, imagenum);
+                printf("Wrote an image of size %d to file\n", imgsize);
+                free(imgbuf); //don't need this in memory anymore because we saved it to a file
             
-            //TODO process the image (if failed then send failure) and assign url to its variable
-            char url[MAX_URL_LENGTH];
-            processImage(url, imagenum);
-            //don't need to waste disk space by keeping file
-            char remove[MAX_URL_LENGTH];
-            sprintf(remove, "rm tmp-%u-%d.png", (unsigned int)pthread_self(), imagenum);
-            system(remove);
-            printf("Parsed URL: %s\n", url);
-            sendInt((int)sockfd, SUCCESS);
-            sendString((int)sockfd, url);
-        } else {
-            printf("Connection timed out.\n");
+                char url[MAX_URL_LENGTH];
+                processImage(url, imagenum);
+                //don't need to waste disk space by keeping file
+                char remove[MAX_URL_LENGTH];
+                sprintf(remove, "rm tmp-%u-%d.png", (unsigned int)pthread_self(), imagenum);
+                system(remove);
+                printf("Parsed URL: %s\n", url);
+                sendInt((int)sockfd, SUCCESS);
+                sendString((int)sockfd, url);
+            }
+        }
+        else {
+            writetolog("Connection timed out.\n");
             sendInt((int)sockfd, TIMEOUT);
             sendString((int)sockfd, "Connection timed out");
             timedout=TRUE;
@@ -202,7 +227,7 @@ void *handleclient(void *sockfd){
     #ifdef DEBUG
     printf("Closing connection to host.\n");
     #endif
-    threadid--;
+    numclients--;
     close((int)sockfd); 
     pthread_exit(NULL);
 }
@@ -275,4 +300,14 @@ void checkPort(char *port) {
 		exit(1);
 	}
 	return;
+}
+void writetolog(char *message){
+    //TODO add timestamp
+    pthread_mutex_lock(&logmutex);
+    FILE *fp;
+    int size = strlen(message);
+    fp=fopen("server.log", "ab");
+    fputs(message, fp);
+    fclose(fp);
+    pthread_mutex_unlock(&logmutex);
 }
