@@ -38,6 +38,7 @@ uint32_t htonl(uint32_t hostlong);
 void exit(int status);
 void checkPort(char *port);
 void writetolog(char *message);
+struct tm *thetime;
 
 long numclients = 0;
 int ratenum, ratetime, timeout;
@@ -302,12 +303,16 @@ void checkPort(char *port) {
 	return;
 }
 void writetolog(char *message){
-    //TODO add timestamp
+    char ftime[256];
+    char fullmsg[256];
+    time_t ctime = time(NULL);
+    thetime = localtime(&ctime);
+    strftime(ftime, 256, "%b %d, %Y @ %I:%M:%S %p:", thetime);
+    sprintf(fullmsg, "%s %s", ftime, message);
     pthread_mutex_lock(&logmutex);
     FILE *fp;
-    int size = strlen(message);
-    fp=fopen("server.log", "ab");
-    fputs(message, fp);
+    fp=fopen("server.log", "a");
+    fputs(fullmsg, fp);
     fclose(fp);
     pthread_mutex_unlock(&logmutex);
 }
