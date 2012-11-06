@@ -123,6 +123,9 @@ int main(int argc, char** argv){
 		addrsize=sizeof(newaddr);
 		int acceptedfd;
 		acceptedfd = accept((int)socketfd, (struct sockaddr *)&newaddr, &addrsize);
+		char ipaddr[14];
+	    sprintf(ipaddr,"%u.%u.%u.%u",((struct sockaddr*)&newaddr)->sa_data[2],((struct sockaddr*)&newaddr)->sa_data[3],((struct sockaddr*)&newaddr)->sa_data[4],((struct sockaddr*)&newaddr)->sa_data[5]);
+	    printf("%s\n", ipaddr);
 		if((numclients)>=maxusers){
 		    //Too many connected users
 		    writetolog("Too many users connected, refusing connection.\n");
