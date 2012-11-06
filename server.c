@@ -20,6 +20,7 @@
 #define FAILURE             1
 #define TIMEOUT             2
 #define RATE_LIMIT_EXCEEDED 3
+#define USER_LIMIT          4
 #define MAX_URL_LENGTH      2048
 
 int receiveBytes(int sockfd, size_t numbytes, void* saveptr);
@@ -83,7 +84,6 @@ int main(int argc, char** argv){
 		}
 	}
 	pthread_t threads[maxusers];
-
     struct addrinfo knowninfo, *serverinfo;
     //We wouldn't want crazy stack garbage ruining our sockets
     memset(&knowninfo, 0, sizeof(knowninfo));
@@ -112,11 +112,16 @@ int main(int argc, char** argv){
 		socklen_t addrsize;
 		addrsize=sizeof(newaddr);
 		int acceptedfd;
-		if((threadid+1)>=maxusers){
+		acceptedfd = accept((int)socketfd, (struct sockaddr *)&newaddr, &addrsize);
+		if((threadid)>=maxusers){
 		    //Too many connected users
+		    printf("Too many users connected, refusing connection.\n");
+		    sendInt(acceptedfd, USER_LIMIT);
+		    sendString(acceptedfd, "Too many users connected");
+		    close(acceptedfd);
 		    pthread_yield();
 		}else{
-		    acceptedfd = accept((int)socketfd, (struct sockaddr *)&newaddr, &addrsize);
+		    
 		    printf("Accepted a socket.\n");
 		    if(pthread_create(&threads[threadid], NULL, handleclient, (void *)acceptedfd)) {
 			    printf("There was an error creating the thread");
@@ -229,6 +234,7 @@ int sendInt(int sockfd, int toSend){
 }
 int sendString(int sockfd, char *toSend){
     int length = strlen(toSend);
+    sendInt(sockfd, length);
     return send(sockfd, toSend, length, 0);
 }
 int processImage(char *str){
