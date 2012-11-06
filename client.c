@@ -19,13 +19,13 @@ uint32_t ntohl(uint32_t netlong);
 int receiveInt(int sockfd);
 
 int main(int argc, char** argv){
-    char *port, *message, *imgpath; //Range from 0-65535 so five digits is always sufficient
+    char *port, *message; //Range from 0-65535 so five digits is always sufficient
     char *server;
     char data[MAX_SIZE];
-    int o, i;
+    int o, i, status;
+    status = 0;
     port = DEFAULT_PORT;
     server = SERVER_ADDRESS;
-    imgpath = NULL;
     while((o = getopt(argc, argv, "p:a:h")) != -1) {
 		switch(o) {
 			case 'p':
@@ -44,23 +44,21 @@ int main(int argc, char** argv){
 				exit(1);
 		}
 	}
+	char *imgpath[(argc-optind)];
+	memset(imgpath, 0, sizeof(imgpath));
 	for(i = optind; i < argc; i++) {
 		printf("Current optind %d\n", optind);
 		if(argv[i])
-			imgpath = argv[i];
+			imgpath[i-optind] = argv[i];
 	}
-	if(!imgpath) {
+	if(!imgpath[0]) {
 		printf("You must provide a filename.\n");
 		printf("Usage: client [-p PORT -a SERVER_ADDRESS -h] IMAGE\n");
 		exit(0);
 	}
+	printf("Current argc: %d\n", argc);
 
-    FILE *fp;
-    fp=fopen(imgpath, "rb");
-    size_t imgsize = fread(data, sizeof(char), MAX_SIZE, fp);
-    fclose(fp); //done reading from file
-    printf("Read an image of size %d into memory\n", imgsize);
-    message = data;
+    
     struct addrinfo knowninfo;
     struct addrinfo *clientinfo;  // will point to the results
     int socketfd;
@@ -85,20 +83,26 @@ int main(int argc, char** argv){
         fprintf(stderr, "FATAL: connect() returned an error\n");
         return 1;
     }
-    else printf("SUCCESS! Connected. Uploading file.\n");
-    send(socketfd, (void *)&imgsize, sizeof(size_t), 0);
-    size_t sentbytes=0;
-    while(sentbytes<imgsize){
-        sentbytes += send(socketfd, message, imgsize, 0);
-    }
-    printf("Sent %d bytes.\n", sentbytes);
-    int status;
-    char url[MAX_SIZE];
-    //int rcvd = receiveBytes(socketfd, sizeof(int), (void *)&status);
-    status=receiveInt(socketfd);
-    receiveString(socketfd, url);
-    printf("Success? %d\nURL: %s\n", status, url);
-    sleep(10);
+    else printf("SUCCESS! Connected. Uploading file(s).\n");
+	for(i = 0; i < (argc-optind); i++) {
+	    FILE *fp;
+	    fp=fopen(imgpath[i], "rb");
+	    size_t imgsize = fread(data, sizeof(char), MAX_SIZE, fp);
+	    fclose(fp); //done reading from file
+	    printf("Read an image of size %d into memory\n", imgsize);
+	    message = data;
+	    send(socketfd, (void *)&imgsize, sizeof(size_t), 0);
+	    size_t sentbytes=0;
+	    while(sentbytes<imgsize){
+	        sentbytes += send(socketfd, message, imgsize, 0);
+	    }
+	    printf("Sent %d bytes.\n", sentbytes);
+	    char url[MAX_SIZE];
+	    //int rcvd = receiveBytes(socketfd, sizeof(int), (void *)&status);
+	    status=receiveInt(socketfd);
+	    receiveString(socketfd, url);
+	    printf("Success? %d\nURL: %s\n", status, url);
+	}
     return status;
 }
 int receiveInt(int sockfd){
@@ -123,8 +127,8 @@ int receiveString(int sockfd, char *saveptr){
     while((!ended) && (bytesread != -1) && rcvdbytes<MAX_URL_LENGTH){
         bytesread = recv(sockfd, (void*)saveptr, MAX_URL_LENGTH, 0);
         rcvdbytes += bytesread;
-        printf("Got %d bytes from server (%d total)\n", bytesread, rcvdbytes);
-        ended=(saveptr[rcvdbytes]=='\0');
+        printf("Got %d bytes from server (%d total), string %s, char %c\n", bytesread, rcvdbytes, saveptr, saveptr[rcvdbytes]);
+        ended=(saveptr[rcvdbytes+1]=='\0');
     }
     return rcvdbytes;
 }
