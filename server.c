@@ -38,7 +38,7 @@ uint32_t htonl(uint32_t hostlong);
 void exit(int status);
 void writetolog(char *message);
 
-long threadid = 0;
+long numclients = 0;
 int ratenum, ratetime, timeout;
 pthread_mutex_t logmutex;
 
@@ -118,7 +118,7 @@ int main(int argc, char** argv){
 		addrsize=sizeof(newaddr);
 		int acceptedfd;
 		acceptedfd = accept((int)socketfd, (struct sockaddr *)&newaddr, &addrsize);
-		if((threadid)>=maxusers){
+		if((numclients)>=maxusers){
 		    //Too many connected users
 		    writetolog("Too many users connected, refusing connection.\n");
 		    sendInt(acceptedfd, USER_LIMIT);
@@ -128,12 +128,12 @@ int main(int argc, char** argv){
 		}else{
 		    
 		    printf("Accepted a socket.\n");
-		    if(pthread_create(&threads[threadid], NULL, handleclient, (void *)acceptedfd)) {
+		    if(pthread_create(&threads[numclients], NULL, handleclient, (void *)acceptedfd)) {
 			    printf("There was an error creating the thread");
 			    exit(-1);
 		    }
-		    else printf("Created thread ID %ld.\n",(long)threadid);
-		    threadid++;
+		    else printf("Created thread ID %ld.\n",(long)numclients);
+		    numclients++;
 		}
 	}
     close(socketfd);
@@ -212,7 +212,7 @@ void *handleclient(void *sockfd){
         }
     }
     printf("Closing connection to host.\n");
-    threadid--;
+    numclients--;
     close((int)sockfd); 
     pthread_exit(NULL);
 }
