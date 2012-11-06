@@ -102,7 +102,9 @@ int main(int argc, char** argv){
         fprintf(stderr, "ERROR: bind() returned with an error\n");
         return 1;
     }
+    #ifdef DEBUG
     printf("Bound socket.\n");
+    #endif
     if(listen(socketfd, maxusers)!=0){
         fprintf(stderr, "ERROR: listen() returned with an error\n");
         return 1;
@@ -124,8 +126,9 @@ int main(int argc, char** argv){
 		    close(acceptedfd);
 		    pthread_yield();
 		}else{
-		    
+		    #ifdef DEBUG
 		    printf("Accepted a socket.\n");
+		    #endif
 		    if(pthread_create(&threads[threadid], NULL, handleclient, (void *)acceptedfd)) {
 			    printf("There was an error creating the thread");
 			    exit(-1);
@@ -138,7 +141,9 @@ int main(int argc, char** argv){
     pthread_exit(NULL);
 }
 void *handleclient(void *sockfd){
+	#ifdef DEBUG
 	printf("Hello, I'm a thread!\n");
+	#endif
     int timedout = FALSE;
     fd_set readfds;
 	FD_ZERO(&readfds);
@@ -158,7 +163,9 @@ void *handleclient(void *sockfd){
                 timedout=TRUE;
                 break;
             }
+            #ifdef DEBUG
             printf("Client is sending a file of size %d bytes.\n",imgsize);
+            #endif
             char *imgbuf;
             if(imgsize>=MAX_FILE_SIZE){
                 imgsize=MAX_FILE_SIZE;
@@ -169,7 +176,9 @@ void *handleclient(void *sockfd){
             
             //write to temporary file
             writetofile(imgbuf, imgsize);
+            #ifdef DEBUG
             printf("Wrote an image of size %d to file\n", imgsize);
+            #endif
             free(imgbuf); //don't need this in memory anymore because we saved it to a file
             
             //TODO process the image (if failed then send failure) and assign url to its variable
@@ -189,7 +198,9 @@ void *handleclient(void *sockfd){
             timedout=TRUE;
         }
     }
+    #ifdef DEBUG
     printf("Closing connection to host.\n");
+    #endif
     threadid--;
     close((int)sockfd); 
     pthread_exit(NULL);
@@ -198,7 +209,9 @@ int writetofile(char* buffer, size_t size){
     FILE *fp;
     char tmp[MAX_URL_LENGTH];
     sprintf(tmp, "tmp-%u.png", (unsigned int)pthread_self());
+    #ifdef DEBUG
     printf("The string is now %s\n",tmp);
+    #endif
     char *name = tmp;
     fp=fopen(name, "wb");
     size_t written = fwrite(buffer, sizeof(char), size, fp);
@@ -245,7 +258,9 @@ int processImage(char *str){
 	sprintf(command, "java -cp javase.jar:core.jar com.google.zxing.client.j2se.CommandLineRunner tmp-%u.png", (unsigned int)pthread_self());
     FILE *process = popen(command, "r");
     int i;
+    #ifdef DEBUG
     printf("Started processing image\n");
+    #endif
     for(i=0; i<5; i++){
         fgets(str,MAX_URL_LENGTH,process);
     }

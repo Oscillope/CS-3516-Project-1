@@ -57,7 +57,7 @@ int main(int argc, char** argv){
 	if(!imgpath[0]) {
 		printf("You must provide a filename.\n");
 		printf("Usage: client [-p PORT -a SERVER_ADDRESS -h] IMAGE\n");
-		exit(0);
+		exit(1);
 	}
     struct addrinfo knowninfo;
     struct addrinfo *clientinfo;  // will point to the results
@@ -73,7 +73,7 @@ int main(int argc, char** argv){
 		fprintf(stderr, "FATAL: getaddrinfo() returned an error\n");
 		return 1;
 	}
-    printf("%u\n",(unsigned int)clientinfo->ai_addr);
+    //printf("%u\n",(unsigned int)clientinfo->ai_addr);
 	socketfd = socket(clientinfo->ai_family, clientinfo->ai_socktype, clientinfo->ai_protocol);
     /*if(bind(socketfd, clientinfo->ai_addr, clientinfo->ai_addrlen) != 0) {
         fprintf(stderr, "FATAL: bind() returned an error\n");
@@ -89,19 +89,36 @@ int main(int argc, char** argv){
 	    fp=fopen(imgpath[i], "rb");
 	    size_t imgsize = fread(data, sizeof(char), MAX_SIZE, fp);
 	    fclose(fp); //done reading from file
+	    #ifdef DEBUG
 	    printf("Read an image of size %d into memory\n", imgsize);
+	    #endif
 	    message = data;
 	    send(socketfd, (void *)&imgsize, sizeof(size_t), 0);
 	    size_t sentbytes=0;
 	    while(sentbytes<imgsize){
 	        sentbytes += send(socketfd, message, imgsize, 0);
 	    }
+	    #ifdef DEBUG
 	    printf("Sent %d bytes.\n", sentbytes);
+	    #endif
 	    char url[MAX_SIZE];
 	    //int rcvd = receiveBytes(socketfd, sizeof(int), (void *)&status);
 	    status=receiveInt(socketfd);
 	    receiveString(socketfd, url);
-	    printf("Success? %d\nURL: %s\n", status, url);
+	    switch(status) {
+			case 0:	
+				printf("URL %d: %s\n", i, url);
+				break;
+			case 1:
+				fprintf(stderr, "Something went wrong! Error code 1. Check to make sure your QR code is valid.\n");
+				break;
+			case 2:
+				fprintf(stderr, "%s\n", url);
+				break;
+			case 3:
+				fprintf(stderr, "%s\n", url);
+				break;
+		}
 	}
     return status;
 }
@@ -127,7 +144,9 @@ int receiveString(int sockfd, char *saveptr){
     while((bytesread != -1) && rcvdbytes<size){
         bytesread = recv(sockfd, (void*)saveptr, MAX_URL_LENGTH, 0);
         rcvdbytes += bytesread;
+        #ifdef DEBUG
         printf("Got %d bytes from server (%d total).\n", bytesread, rcvdbytes);
+        #endif
     }
     saveptr[rcvdbytes]='\0';
     return rcvdbytes;
