@@ -37,7 +37,11 @@ int pthread_yield(void);
 uint32_t htonl(uint32_t hostlong);
 void exit(int status);
 void checkPort(char *port);
-void writetolog(char *message);
+void writetolog(char *message, char addr[14]);
+struct to_thread {
+	int fd;
+	char *ip;
+};
 struct tm *thetime;
 
 long numclients = 0;
@@ -92,6 +96,7 @@ int main(int argc, char** argv){
 		}
 	}
 	pthread_t threads[maxusers];
+	struct to_thread toThreads[maxusers];
     struct addrinfo knowninfo, *serverinfo;
     //We wouldn't want crazy stack garbage ruining our sockets
     memset(&knowninfo, 0, sizeof(knowninfo));
@@ -99,22 +104,21 @@ int main(int argc, char** argv){
     knowninfo.ai_socktype=SOCK_STREAM;
     knowninfo.ai_flags=AI_PASSIVE;
     if(getaddrinfo(NULL, port, &knowninfo, &serverinfo) != 0){
-        fprintf(stderr, "ERROR: getaddrinfo() returned with an error\n");
+        fprintf(stderr, "ERROR: getaddrinfo() returned with an error.\n");
         return 1;
     }
     socketfd = socket(serverinfo->ai_family, serverinfo->ai_socktype, serverinfo->ai_protocol);
     if(bind(socketfd, serverinfo->ai_addr, serverinfo->ai_addrlen)!=0){
-        fprintf(stderr, "ERROR: bind() returned with an error\n");
+        fprintf(stderr, "ERROR: bind() returned with an error.\n");
         return 1;
     }
     #ifdef DEBUG
     printf("Bound socket.\n");
     #endif
     if(listen(socketfd, maxusers)!=0){
-        fprintf(stderr, "ERROR: listen() returned with an error\n");
+        fprintf(stderr, "ERROR: listen() returned with an error.\n");
         return 1;
     }
-
     freeaddrinfo(serverinfo); // free up memory occupied by linked list
     while(1) {
 		printf("I'm listening...\n");
@@ -125,20 +129,22 @@ int main(int argc, char** argv){
 		acceptedfd = accept((int)socketfd, (struct sockaddr *)&newaddr, &addrsize);
 		char ipaddr[14];
 	    sprintf(ipaddr,"%u.%u.%u.%u",((struct sockaddr*)&newaddr)->sa_data[2],((struct sockaddr*)&newaddr)->sa_data[3],((struct sockaddr*)&newaddr)->sa_data[4],((struct sockaddr*)&newaddr)->sa_data[5]);
-	    printf("%s\n", ipaddr);
+	    writetolog("Connected.\n", ipaddr);
 		if((numclients)>=maxusers){
 		    //Too many connected users
-		    writetolog("Too many users connected, refusing connection.\n");
+		    writetolog("Too many users connected, refusing connection.\n", ipaddr);
 		    sendInt(acceptedfd, USER_LIMIT);
-		    sendString(acceptedfd, "Too many users connected");
+		    sendString(acceptedfd, "Too many users connected.");
 		    close(acceptedfd);
 		    pthread_yield();
 		}else{
 		    #ifdef DEBUG
 		    printf("Accepted a socket.\n");
 		    #endif
-		    if(pthread_create(&threads[numclients], NULL, handleclient, (void *)acceptedfd)) {
-			    printf("There was an error creating the thread");
+		    toThreads[numclients].fd = acceptedfd;
+		    toThreads[numclients].ip = (char *)ipaddr;
+		    if(pthread_create(&threads[numclients], NULL, handleclient, (void *) &toThreads[numclients])) {
+			    printf("There was an error creating the thread.");
 			    exit(-1);
 		    }
 		    else printf("Created thread ID %ld.\n",(long)numclients);
@@ -149,14 +155,18 @@ int main(int argc, char** argv){
     pthread_mutex_destroy(&logmutex);
     pthread_exit(NULL);
 }
-void *handleclient(void *sockfd){
+void *handleclient(void *fromMain){
 	#ifdef DEBUG
 	printf("Hello, I'm a thread!\n");
 	#endif
     int timedout = FALSE;
+    struct to_thread *data = (struct to_thread *) fromMain;
+    int sockfd = data->fd;
+    char *addr;
+    addr = data->ip;
     fd_set readfds;
 	FD_ZERO(&readfds);
-	FD_SET((int)sockfd, &readfds);
+	FD_SET(sockfd, &readfds);
 	struct timeval timeoutval;
 	timeoutval.tv_sec = timeout;
 	timeoutval.tv_usec = 0;
@@ -166,14 +176,16 @@ void *handleclient(void *sockfd){
     while(!timedout){
         //TODO enforce rate rules
         //set timeout
-        select((int)sockfd+1, &readfds, NULL, NULL, &timeoutval);
-        if(FD_ISSET((int)sockfd, &readfds)){
+        select(sockfd+1, &readfds, NULL, NULL, &timeoutval);
+        if(FD_ISSET(sockfd, &readfds)){
 	        int imgsize;
             //receive the size of the image
-            int rcvstatus = receiveBytes((int)sockfd, sizeof(int), (void *)&imgsize);
+            int rcvstatus = receiveBytes(sockfd, sizeof(int), (void *)&imgsize);
             time_t currenttime = time(NULL);
             if(!rcvstatus){
-                printf("Client closed connection\n");
+				#ifdef DEBUG
+                printf("Client closed connection.\n");
+                #endif
                 timedout=TRUE;
                 break;
             }
@@ -186,28 +198,34 @@ void *handleclient(void *sockfd){
             }
             imgbuf = (char*)malloc(imgsize);
             //recieve the image
-            rcvstatus = receiveBytes((int)sockfd, imgsize, (void *)imgbuf);
+            rcvstatus = receiveBytes(sockfd, imgsize, (void *)imgbuf);
+            #ifdef DEBUG
             printf("Recieve status: %d\n", rcvstatus);
+            #endif
             imagenum++;
             int i;
             int isfull = TRUE;
             for(i=0; i<ratenum; i++){
                 if(difftime(currenttime, lastconnection[i])>ratetime){
                     lastconnection[i]=currenttime;
+                    #ifdef DEBUG
                     printf("found a time: %f\n", difftime(currenttime, lastconnection[i]));
+                    #endif
                     isfull = FALSE;
                     break;
                 }
             }
             if(isfull){
                 free(imgbuf);
-                writetolog("Rate limit exceeded\n");
-                sendInt((int)sockfd, RATE_LIMIT_EXCEEDED);
-                sendString((int)sockfd, "Rate limit exceeded");
+                writetolog("Rate limit exceeded.\n", addr);
+                sendInt(sockfd, RATE_LIMIT_EXCEEDED);
+                sendString(sockfd, "Rate limit exceeded.");
             } else {
                 //write to temporary file
                 writetofile(imgbuf, imgsize, imagenum);
-                printf("Wrote an image of size %d to file\n", imgsize);
+                #ifdef DEBUG
+                printf("Wrote an image of size %d to file.\n", imgsize);
+                #endif
                 free(imgbuf); //don't need this in memory anymore because we saved it to a file
             
                 char url[MAX_URL_LENGTH];
@@ -217,14 +235,14 @@ void *handleclient(void *sockfd){
                 sprintf(remove, "rm tmp-%u-%d.png", (unsigned int)pthread_self(), imagenum);
                 system(remove);
                 printf("Parsed URL: %s\n", url);
-                sendInt((int)sockfd, SUCCESS);
-                sendString((int)sockfd, url);
+                sendInt(sockfd, SUCCESS);
+                sendString(sockfd, url);
             }
         }
         else {
-            writetolog("Connection timed out.\n");
-            sendInt((int)sockfd, TIMEOUT);
-            sendString((int)sockfd, "Connection timed out");
+            writetolog("Connection timed out.\n", addr);
+            sendInt(sockfd, TIMEOUT);
+            sendString(sockfd, "Connection timed out.");
             timedout=TRUE;
         }
     }
@@ -232,7 +250,7 @@ void *handleclient(void *sockfd){
     printf("Closing connection to host.\n");
     #endif
     numclients--;
-    close((int)sockfd); 
+    close(sockfd); 
     pthread_exit(NULL);
 }
 int writetofile(char* buffer, size_t size, int counter){
@@ -240,7 +258,7 @@ int writetofile(char* buffer, size_t size, int counter){
     char tmp[MAX_URL_LENGTH];
     sprintf(tmp, "tmp-%u-%d.png", (unsigned int)pthread_self(), counter);
     #ifdef DEBUG
-    printf("The string is now %s\n",tmp);
+    printf("The string is now %s.\n",tmp);
     #endif
     char *name = tmp;
     fp=fopen(name, "wb");
@@ -289,7 +307,7 @@ int processImage(char *str, int counter){
     FILE *process = popen(command, "r");
     int i;
     #ifdef DEBUG
-    printf("Started processing image\n");
+    printf("Started processing image.\n");
     #endif
     for(i=0; i<5; i++){
         fgets(str,MAX_URL_LENGTH,process);
@@ -305,13 +323,13 @@ void checkPort(char *port) {
 	}
 	return;
 }
-void writetolog(char *message){
+void writetolog(char *message, char addr[14]){
     char ftime[256];
     char fullmsg[256];
     time_t ctime = time(NULL);
     thetime = localtime(&ctime);
-    strftime(ftime, 256, "%b %d, %Y @ %I:%M:%S %p:", thetime);
-    sprintf(fullmsg, "%s %s", ftime, message);
+    strftime(ftime, 256, "%d %b %Y %I:%M:%S %p", thetime);
+    sprintf(fullmsg, "%s from %s: %s", ftime, addr, message);
     pthread_mutex_lock(&logmutex);
     FILE *fp;
     fp=fopen("server.log", "a");
